@@ -1,0 +1,18 @@
+.*.swp
+*.pyc
+
+# datasets
+data_lineex_imfolder/
+
+# outputs / checkpoints / artifacts
+outputs/
+*.pth
+*.pth.tar
+*.pt
+*.ckpt
+*.tar
+
+# logs
+logs/
+*.out
+*.err

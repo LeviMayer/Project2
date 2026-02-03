@@ -1,0 +1,9 @@
+Process Process-1:
+Traceback (most recent call last):
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/multiprocessing/process.py", line 315, in _bootstrap
+    self.run()
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/app/main.py", line 44, in process_main
+    with open(fname, 'r') as y_file:
+FileNotFoundError: [Errno 2] No such file or directory: '/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/configs/pretrain/lineex_vitb16.yaml'

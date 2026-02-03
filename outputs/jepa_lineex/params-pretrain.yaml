@@ -1,0 +1,89 @@
+app: vjepa
+data:
+  batch_size: 16
+  clip_duration: null
+  crop_size: 224
+  dataset_type: ImageNet
+  datasets:
+  - /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa
+  decode_one_clip: true
+  filter_short_videos: false
+  image_folder: data_lineex_imfolder/
+  num_clips: 1
+  num_frames: 1
+  num_workers: 0
+  patch_size: 16
+  pin_mem: true
+  sampling_rate: 1
+  tubelet_size: 1
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio:
+  - 0.75
+  - 1.35
+  random_resize_scale:
+  - 0.3
+  - 1.0
+  reprob: 0.0
+logging:
+  folder: /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/outputs/jepa_lineex
+  write_tag: lineex_vjepa
+loss:
+  loss_exp: 1.0
+  reg_coeff: 0.0
+mask:
+- aspect_ratio:
+  - 0.75
+  - 1.5
+  max_keep: null
+  max_temporal_keep: 1.0
+  num_blocks: 8
+  spatial_scale:
+  - 0.15
+  - 0.15
+  temporal_scale:
+  - 1.0
+  - 1.0
+- aspect_ratio:
+  - 0.75
+  - 1.5
+  max_keep: null
+  max_temporal_keep: 1.0
+  num_blocks: 2
+  spatial_scale:
+  - 0.7
+  - 0.7
+  temporal_scale:
+  - 1.0
+  - 1.0
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: false
+  read_checkpoint: null
+  seed: 234
+  use_sdpa: true
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  uniform_power: true
+  use_mask_tokens: true
+  zero_init_mask_tokens: true
+nodes: 1
+optimization:
+  clip_grad: 10.0
+  ema:
+  - 0.998
+  - 1.0
+  epochs: 1
+  final_lr: 1.0e-06
+  final_weight_decay: 0.4
+  ipe: 200
+  ipe_scale: 1.0
+  lr: 0.000625
+  start_lr: 0.0002
+  warmup: 0
+  weight_decay: 0.04
+tasks_per_node: 1

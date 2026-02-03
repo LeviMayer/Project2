@@ -1,0 +1,3 @@
+usage: main.py [-h] [--fname FNAME] [--devices DEVICES [DEVICES ...]]
+main.py: error: unrecognized arguments: --output_dir /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/outputs/jepa_lineex
+ERROR conda.cli.main_run:execute(125): `conda run python -m app.main --fname /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/configs/pretrain/lineex_vitb16.yaml --output_dir /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/outputs/jepa_lineex` failed. (See above for error)

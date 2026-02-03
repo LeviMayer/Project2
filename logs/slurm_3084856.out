@@ -1,0 +1,177 @@
+HOST: uc2n561.localdomain
+DATE: Tue Feb  3 09:52:32 AM CET 2026
+PWD:  /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa
+SLURM_JOB_ID: 3084856
+CUDA_VISIBLE_DEVICES: 0
+Tue Feb  3 09:52:40 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 570.195.03             Driver Version: 570.195.03     CUDA Version: 12.8     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-PCIE-40GB          On  |   00000000:06:00.0 Off |                    0 |
+| N/A   38C    P0             33W /  250W |      23MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            2273      G   /usr/libexec/Xorg                        17MiB |
++-----------------------------------------------------------------------------------------+
+2.7.1+cu118
+True
+1
+[INFO    ][2026-02-03 09:53:21][process_main             ] called-params /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/configs/pretrain/lineex_vitl16.yaml
+[INFO    ][2026-02-03 09:53:21][process_main             ] loaded params...
+{   'app': 'vjepa',
+    'data': {   'batch_size': 16,
+                'clip_duration': None,
+                'crop_size': 224,
+                'dataset_type': 'ImageNet',
+                'datasets': [   '/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa'],
+                'decode_one_clip': True,
+                'filter_short_videos': False,
+                'image_folder': 'data_lineex_imfolder/',
+                'num_clips': 1,
+                'num_frames': 1,
+                'num_workers': 0,
+                'patch_size': 16,
+                'pin_mem': True,
+                'sampling_rate': 1,
+                'tubelet_size': 1},
+    'data_aug': {   'auto_augment': False,
+                    'motion_shift': False,
+                    'random_resize_aspect_ratio': [0.75, 1.35],
+                    'random_resize_scale': [0.3, 1.0],
+                    'reprob': 0.0},
+    'logging': {   'folder': '/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/outputs/jepa_lineex',
+                   'write_tag': 'lineex_vjepa'},
+    'loss': {'loss_exp': 1.0, 'reg_coeff': 0.0},
+    'mask': [   {   'aspect_ratio': [0.75, 1.5],
+                    'max_keep': None,
+                    'max_temporal_keep': 1.0,
+                    'num_blocks': 8,
+                    'spatial_scale': [0.15, 0.15],
+                    'temporal_scale': [1.0, 1.0]},
+                {   'aspect_ratio': [0.75, 1.5],
+                    'max_keep': None,
+                    'max_temporal_keep': 1.0,
+                    'num_blocks': 2,
+                    'spatial_scale': [0.7, 0.7],
+                    'temporal_scale': [1.0, 1.0]}],
+    'meta': {   'dtype': 'bfloat16',
+                'eval_freq': 100,
+                'load_checkpoint': False,
+                'read_checkpoint': None,
+                'seed': 234,
+                'use_sdpa': True},
+    'model': {   'model_name': 'vit_large',
+                 'pred_depth': 12,
+                 'pred_embed_dim': 384,
+                 'uniform_power': True,
+                 'use_mask_tokens': True,
+                 'zero_init_mask_tokens': True},
+    'nodes': 1,
+    'optimization': {   'clip_grad': 10.0,
+                        'ema': [0.998, 1.0],
+                        'epochs': 1,
+                        'final_lr': 1e-06,
+                        'final_weight_decay': 0.4,
+                        'ipe': 200,
+                        'ipe_scale': 1.0,
+                        'lr': 0.000625,
+                        'start_lr': 0.0002,
+                        'warmup': 0,
+                        'weight_decay': 0.04},
+    'tasks_per_node': 1}
+[INFO    ][2026-02-03 09:53:21][process_main             ] Running... (rank: 0/1)
+[INFO    ][2026-02-03 09:53:21][main                     ] Running pre-training of app: vjepa
+[INFO    ][2026-02-03 09:53:34][main                     ] which_dtype='bfloat16'
+[INFO    ][2026-02-03 09:53:34][main                     ] Initialized (rank/world-size) 0/1
+[INFO    ][2026-02-03 09:53:41][init_video_model         ] MultiMaskWrapper(
+  (backbone): VisionTransformer(
+    (patch_embed): PatchEmbed(
+      (proj): Conv2d(3, 1024, kernel_size=(16, 16), stride=(16, 16))
+    )
+    (blocks): ModuleList(
+      (0-23): 24 x Block(
+        (norm1): LayerNorm((1024,), eps=1e-06, elementwise_affine=True)
+        (attn): Attention(
+          (qkv): Linear(in_features=1024, out_features=3072, bias=True)
+          (attn_drop): Dropout(p=0.0, inplace=False)
+          (proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (proj_drop): Dropout(p=0.0, inplace=False)
+        )
+        (norm2): LayerNorm((1024,), eps=1e-06, elementwise_affine=True)
+        (mlp): MLP(
+          (fc1): Linear(in_features=1024, out_features=4096, bias=True)
+          (act): GELU(approximate='none')
+          (fc2): Linear(in_features=4096, out_features=1024, bias=True)
+          (drop): Dropout(p=0.0, inplace=False)
+        )
+      )
+    )
+    (norm): LayerNorm((1024,), eps=1e-06, elementwise_affine=True)
+  )
+)
+[INFO    ][2026-02-03 09:53:41][init_video_model         ] PredictorMultiMaskWrapper(
+  (backbone): VisionTransformerPredictor(
+    (predictor_embed): Linear(in_features=1024, out_features=384, bias=True)
+    (mask_tokens): ParameterList(
+        (0): Parameter containing: [torch.float32 of size 1x1x384 (cuda:0)]
+        (1): Parameter containing: [torch.float32 of size 1x1x384 (cuda:0)]
+    )
+    (predictor_blocks): ModuleList(
+      (0-11): 12 x Block(
+        (norm1): LayerNorm((384,), eps=1e-06, elementwise_affine=True)
+        (attn): Attention(
+          (qkv): Linear(in_features=384, out_features=1152, bias=True)
+          (attn_drop): Dropout(p=0.0, inplace=False)
+          (proj): Linear(in_features=384, out_features=384, bias=True)
+          (proj_drop): Dropout(p=0.0, inplace=False)
+        )
+        (norm2): LayerNorm((384,), eps=1e-06, elementwise_affine=True)
+        (mlp): MLP(
+          (fc1): Linear(in_features=384, out_features=1536, bias=True)
+          (act): GELU(approximate='none')
+          (fc2): Linear(in_features=1536, out_features=384, bias=True)
+          (drop): Dropout(p=0.0, inplace=False)
+        )
+      )
+    )
+    (predictor_norm): LayerNorm((384,), eps=1e-06, elementwise_affine=True)
+    (predictor_proj): Linear(in_features=384, out_features=1024, bias=True)
+  )
+)
+[INFO    ][2026-02-03 09:53:41][init_video_model         ] Encoder number of parameters: 303098880
+[INFO    ][2026-02-03 09:53:41][init_video_model         ] Predictor number of parameters: 22082944
+[INFO    ][2026-02-03 09:53:41][main                     ] Initializing basic multi-block mask
+[INFO    ][2026-02-03 09:53:41][__init__                 ] data-path /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/data_lineex_imfolder/train/
+[INFO    ][2026-02-03 09:54:14][__init__                 ] Initialized ImageFolder
+[INFO    ][2026-02-03 09:54:14][make_imagedataset        ] ImageFolder dataset created
+[INFO    ][2026-02-03 09:54:14][make_imagedataset        ] ImageFolder unsupervised data loader created
+[INFO    ][2026-02-03 09:54:14][main                     ] iterations per epoch/dataest length: 200/1125
+[INFO    ][2026-02-03 09:54:14][init_opt                 ] Using AdamW
+[INFO    ][2026-02-03 09:54:15][main                     ] Initializing loader...
+[INFO    ][2026-02-03 09:54:15][main                     ] Epoch 1
+[INFO    ][2026-02-03 09:54:15][main                     ] Exhausted data loaders. Refreshing...
+
+============================= JOB FEEDBACK =============================
+
+NodeName=uc2n561
+Job ID: 3084856
+Cluster: uc3
+User/Group: ul_upf92/ul_student
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 16
+CPU Utilized: 00:00:26
+CPU Efficiency: 1.40% of 00:30:56 core-walltime
+Job Wall-clock time: 00:01:56
+Memory Utilized: 917.04 MB
+Memory Efficiency: 1.40% of 64.00 GB (64.00 GB/node)

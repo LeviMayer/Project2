@@ -1,0 +1,58 @@
+/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/app/vjepa/utils.py:209: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = torch.cuda.amp.GradScaler() if mixed_precision else None
+/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/app/vjepa/train.py:463: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(dtype=dtype, enabled=mixed_precision):
+Process Process-1:
+Traceback (most recent call last):
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/multiprocessing/process.py", line 315, in _bootstrap
+    self.run()
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/app/main.py", line 60, in process_main
+    app_main(params['app'], args=params)
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/app/scaffold.py", line 19, in main
+    return importlib.import_module(f'app.{app}.train').main(
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/app/vjepa/train.py", line 509, in main
+    (loss, loss_jepa, loss_reg, _new_lr, _new_wd, grad_stats, grad_stats_pred, optim_stats,), gpu_etime_ms = gpu_timer(train_step)
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/src/utils/logging.py", line 24, in gpu_timer
+    result = closure()
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/app/vjepa/train.py", line 464, in train_step
+    h = forward_target(clips)
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/app/vjepa/train.py", line 435, in forward_target
+    h = target_encoder(c)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/parallel/distributed.py", line 1637, in forward
+    else self._run_ddp_forward(*inputs, **kwargs)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/parallel/distributed.py", line 1464, in _run_ddp_forward
+    return self.module(*inputs, **kwargs)  # type: ignore[index]
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/src/models/utils/multimask.py", line 19, in forward
+    return self.backbone(x)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/src/models/vision_transformer.py", line 172, in forward
+    x = self.patch_embed(x)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/src/models/utils/patch_embed.py", line 27, in forward
+    x = self.proj(x).flatten(2).transpose(1, 2)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/modules/conv.py", line 554, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/site-packages/torch/nn/modules/conv.py", line 549, in _conv_forward
+    return F.conv2d(
+RuntimeError: Given groups=1, weight of size [1024, 3, 16, 16], expected input[48, 1, 224, 224] to have 3 channels, but got 1 channels instead
+[rank0]:[W203 09:58:16.976487411 ProcessGroupNCCL.cpp:1479] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
