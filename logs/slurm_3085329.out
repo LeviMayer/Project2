@@ -1,0 +1,457 @@
+HOST: uc2n566.localdomain
+DATE: Tue Feb  3 10:36:46 AM CET 2026
+PWD:  /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa
+SLURM_JOB_ID: 3085329
+CUDA_VISIBLE_DEVICES: 0
+Tue Feb  3 10:36:55 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 570.195.03             Driver Version: 570.195.03     CUDA Version: 12.8     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-PCIE-40GB          On  |   00000000:06:00.0 Off |                    0 |
+| N/A   50C    P0             42W /  250W |      23MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            2263      G   /usr/libexec/Xorg                        17MiB |
++-----------------------------------------------------------------------------------------+
+2.7.1+cu118
+True
+1
+[INFO    ][2026-02-03 10:37:40][process_main             ] called-params /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/configs/pretrain/lineex_vitl16.yaml
+[INFO    ][2026-02-03 10:37:40][process_main             ] loaded params...
+{   'app': 'vjepa',
+    'data': {   'batch_size': 16,
+                'clip_duration': None,
+                'crop_size': 224,
+                'dataset_type': 'ImageNet',
+                'datasets': [   '/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa'],
+                'decode_one_clip': True,
+                'filter_short_videos': False,
+                'image_folder': 'data_lineex_imfolder/',
+                'num_clips': 1,
+                'num_frames': 1,
+                'num_workers': 0,
+                'patch_size': 16,
+                'pin_mem': True,
+                'sampling_rate': 1,
+                'tubelet_size': 1},
+    'data_aug': {   'auto_augment': False,
+                    'motion_shift': False,
+                    'random_resize_aspect_ratio': [0.75, 1.35],
+                    'random_resize_scale': [0.3, 1.0],
+                    'reprob': 0.0},
+    'logging': {   'folder': '/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/outputs/jepa_lineex',
+                   'write_tag': 'lineex_vjepa'},
+    'loss': {'loss_exp': 1.0, 'reg_coeff': 0.0},
+    'mask': [   {   'aspect_ratio': [0.75, 1.5],
+                    'max_keep': None,
+                    'max_temporal_keep': 1.0,
+                    'num_blocks': 8,
+                    'spatial_scale': [0.15, 0.15],
+                    'temporal_scale': [1.0, 1.0]},
+                {   'aspect_ratio': [0.75, 1.5],
+                    'max_keep': None,
+                    'max_temporal_keep': 1.0,
+                    'num_blocks': 2,
+                    'spatial_scale': [0.7, 0.7],
+                    'temporal_scale': [1.0, 1.0]}],
+    'meta': {   'dtype': 'bfloat16',
+                'eval_freq': 100,
+                'load_checkpoint': False,
+                'read_checkpoint': None,
+                'seed': 234,
+                'use_sdpa': True},
+    'model': {   'model_name': 'vit_large',
+                 'pred_depth': 12,
+                 'pred_embed_dim': 384,
+                 'uniform_power': True,
+                 'use_mask_tokens': True,
+                 'zero_init_mask_tokens': True},
+    'nodes': 1,
+    'optimization': {   'clip_grad': 10.0,
+                        'ema': [0.998, 1.0],
+                        'epochs': 1,
+                        'final_lr': 1e-06,
+                        'final_weight_decay': 0.4,
+                        'ipe': 200,
+                        'ipe_scale': 1.0,
+                        'lr': 0.000625,
+                        'start_lr': 0.0002,
+                        'warmup': 0,
+                        'weight_decay': 0.04},
+    'tasks_per_node': 1}
+[INFO    ][2026-02-03 10:37:40][process_main             ] Running... (rank: 0/1)
+[INFO    ][2026-02-03 10:37:40][main                     ] Running pre-training of app: vjepa
+[INFO    ][2026-02-03 10:37:56][main                     ] which_dtype='bfloat16'
+[INFO    ][2026-02-03 10:37:56][main                     ] Initialized (rank/world-size) 0/1
+[INFO    ][2026-02-03 10:38:03][init_video_model         ] MultiMaskWrapper(
+  (backbone): VisionTransformer(
+    (patch_embed): PatchEmbed(
+      (proj): Conv2d(3, 1024, kernel_size=(16, 16), stride=(16, 16))
+    )
+    (blocks): ModuleList(
+      (0-23): 24 x Block(
+        (norm1): LayerNorm((1024,), eps=1e-06, elementwise_affine=True)
+        (attn): Attention(
+          (qkv): Linear(in_features=1024, out_features=3072, bias=True)
+          (attn_drop): Dropout(p=0.0, inplace=False)
+          (proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (proj_drop): Dropout(p=0.0, inplace=False)
+        )
+        (norm2): LayerNorm((1024,), eps=1e-06, elementwise_affine=True)
+        (mlp): MLP(
+          (fc1): Linear(in_features=1024, out_features=4096, bias=True)
+          (act): GELU(approximate='none')
+          (fc2): Linear(in_features=4096, out_features=1024, bias=True)
+          (drop): Dropout(p=0.0, inplace=False)
+        )
+      )
+    )
+    (norm): LayerNorm((1024,), eps=1e-06, elementwise_affine=True)
+  )
+)
+[INFO    ][2026-02-03 10:38:03][init_video_model         ] PredictorMultiMaskWrapper(
+  (backbone): VisionTransformerPredictor(
+    (predictor_embed): Linear(in_features=1024, out_features=384, bias=True)
+    (mask_tokens): ParameterList(
+        (0): Parameter containing: [torch.float32 of size 1x1x384 (cuda:0)]
+        (1): Parameter containing: [torch.float32 of size 1x1x384 (cuda:0)]
+    )
+    (predictor_blocks): ModuleList(
+      (0-11): 12 x Block(
+        (norm1): LayerNorm((384,), eps=1e-06, elementwise_affine=True)
+        (attn): Attention(
+          (qkv): Linear(in_features=384, out_features=1152, bias=True)
+          (attn_drop): Dropout(p=0.0, inplace=False)
+          (proj): Linear(in_features=384, out_features=384, bias=True)
+          (proj_drop): Dropout(p=0.0, inplace=False)
+        )
+        (norm2): LayerNorm((384,), eps=1e-06, elementwise_affine=True)
+        (mlp): MLP(
+          (fc1): Linear(in_features=384, out_features=1536, bias=True)
+          (act): GELU(approximate='none')
+          (fc2): Linear(in_features=1536, out_features=384, bias=True)
+          (drop): Dropout(p=0.0, inplace=False)
+        )
+      )
+    )
+    (predictor_norm): LayerNorm((384,), eps=1e-06, elementwise_affine=True)
+    (predictor_proj): Linear(in_features=384, out_features=1024, bias=True)
+  )
+)
+[INFO    ][2026-02-03 10:38:03][init_video_model         ] Encoder number of parameters: 303098880
+[INFO    ][2026-02-03 10:38:03][init_video_model         ] Predictor number of parameters: 22082944
+[INFO    ][2026-02-03 10:38:03][main                     ] Initializing basic multi-block mask
+[INFO    ][2026-02-03 10:38:03][__init__                 ] data-path /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/data_lineex_imfolder/train/
+[INFO    ][2026-02-03 10:38:41][__init__                 ] Initialized ImageFolder
+[INFO    ][2026-02-03 10:38:41][make_imagedataset        ] ImageFolder dataset created
+[INFO    ][2026-02-03 10:38:41][make_imagedataset        ] ImageFolder unsupervised data loader created
+[INFO    ][2026-02-03 10:38:41][main                     ] iterations per epoch/dataest length: 200/1125
+[INFO    ][2026-02-03 10:38:41][init_opt                 ] Using AdamW
+[INFO    ][2026-02-03 10:38:41][main                     ] Initializing loader...
+[INFO    ][2026-02-03 10:38:41][main                     ] Epoch 1
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:38:47][log_stats                ] [1,     0] loss: 0.865 | p0.865 r0.828 | input_var: 0.379 0.096 | masks: [51.0, 18.0] [wd: 4.00e-02] [lr: 6.25e-04] [mem: 9.55e+03] [gpu: 5153.1 ms][wall: 5604.0 ms]
+[INFO    ][2026-02-03 10:38:47][log_stats                ] [1,     0] first moment: 6.60e-06 [1.44e-07 7.77e-05] second moment: 4.05e-11 [1.50e-14 9.58e-10]
+[INFO    ][2026-02-03 10:38:47][log_stats                ] [1,     0] enc_grad_stats: f/l[1.70e-02 6.86e-03] mn/mx(6.86e-03, 5.41e-02) 0.00e+00
+[INFO    ][2026-02-03 10:38:47][log_stats                ] [1,     0] pred_grad_stats: f/l[1.18e-01 7.71e-02] mn/mx(9.06e-03, 4.48e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:38:51][log_stats                ] [1,    10] loss: 0.469 | p0.469 r0.966 | input_var: 0.397 0.109 | masks: [50.0, 17.4] [wd: 4.27e-02] [lr: 6.20e-04] [mem: 9.93e+03] [gpu: 664.7 ms][wall: 885.5 ms]
+[INFO    ][2026-02-03 10:38:51][log_stats                ] [1,    10] first moment: 3.80e-06 [5.12e-08 2.06e-04] second moment: 7.65e-11 [1.49e-14 5.30e-09]
+[INFO    ][2026-02-03 10:38:51][log_stats                ] [1,    10] enc_grad_stats: f/l[5.72e-05 2.67e-05] mn/mx(2.59e-05, 1.22e-04) 0.00e+00
+[INFO    ][2026-02-03 10:38:51][log_stats                ] [1,    10] pred_grad_stats: f/l[3.96e-03 3.44e-03] mn/mx(2.54e-04, 3.41e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:38:55][log_stats                ] [1,    20] loss: 0.344 | p0.344 r0.976 | input_var: 0.378 0.111 | masks: [53.2, 16.0] [wd: 4.97e-02] [lr: 6.08e-04] [mem: 1.01e+04] [gpu: 448.4 ms][wall: 667.3 ms]
+[INFO    ][2026-02-03 10:38:55][log_stats                ] [1,    20] first moment: 2.17e-06 [1.81e-08 1.59e-04] second moment: 1.15e-10 [1.48e-14 8.53e-09]
+[INFO    ][2026-02-03 10:38:55][log_stats                ] [1,    20] enc_grad_stats: f/l[1.31e-05 1.41e-05] mn/mx(1.16e-05, 3.78e-05) 0.00e+00
+[INFO    ][2026-02-03 10:38:55][log_stats                ] [1,    20] pred_grad_stats: f/l[6.70e-03 6.39e-03] mn/mx(3.93e-04, 3.40e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:38:59][log_stats                ] [1,    30] loss: 0.278 | p0.278 r0.980 | input_var: 0.378 0.112 | masks: [51.4, 15.3] [wd: 6.09e-02] [lr: 5.89e-04] [mem: 1.01e+04] [gpu: 371.9 ms][wall: 585.1 ms]
+[INFO    ][2026-02-03 10:38:59][log_stats                ] [1,    30] first moment: 7.19e-06 [6.47e-08 1.37e-04] second moment: 2.79e-10 [1.86e-14 1.80e-08]
+[INFO    ][2026-02-03 10:38:59][log_stats                ] [1,    30] enc_grad_stats: f/l[2.05e-04 2.11e-04] mn/mx(1.57e-04, 4.37e-04) 0.00e+00
+[INFO    ][2026-02-03 10:38:59][log_stats                ] [1,    30] pred_grad_stats: f/l[7.12e-02 2.48e-02] mn/mx(2.75e-03, 3.42e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:04][log_stats                ] [1,    40] loss: 0.233 | p0.233 r0.982 | input_var: 0.368 0.112 | masks: [49.9, 15.6] [wd: 7.61e-02] [lr: 5.63e-04] [mem: 1.01e+04] [gpu: 332.9 ms][wall: 547.6 ms]
+[INFO    ][2026-02-03 10:39:04][log_stats                ] [1,    40] first moment: 4.71e-06 [4.25e-08 3.05e-04] second moment: 4.14e-10 [1.91e-14 4.28e-08]
+[INFO    ][2026-02-03 10:39:04][log_stats                ] [1,    40] enc_grad_stats: f/l[7.46e-05 7.93e-05] mn/mx(5.88e-05, 2.03e-04) 0.00e+00
+[INFO    ][2026-02-03 10:39:04][log_stats                ] [1,    40] pred_grad_stats: f/l[5.97e-02 2.13e-02] mn/mx(2.39e-03, 3.29e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:08][log_stats                ] [1,    50] loss: 0.203 | p0.203 r0.983 | input_var: 0.371 0.112 | masks: [50.0, 16.1] [wd: 9.47e-02] [lr: 5.30e-04] [mem: 1.02e+04] [gpu: 308.9 ms][wall: 520.1 ms]
+[INFO    ][2026-02-03 10:39:08][log_stats                ] [1,    50] first moment: 1.69e-06 [1.52e-08 9.17e-05] second moment: 6.08e-10 [1.89e-14 8.22e-08]
+[INFO    ][2026-02-03 10:39:08][log_stats                ] [1,    50] enc_grad_stats: f/l[6.19e-05 2.38e-05] mn/mx(2.30e-05, 1.23e-04) 0.00e+00
+[INFO    ][2026-02-03 10:39:08][log_stats                ] [1,    50] pred_grad_stats: f/l[2.51e-02 1.62e-02] mn/mx(9.27e-04, 3.00e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:12][log_stats                ] [1,    60] loss: 0.181 | p0.181 r0.984 | input_var: 0.369 0.112 | masks: [49.8, 16.0] [wd: 1.16e-01] [lr: 4.92e-04] [mem: 1.02e+04] [gpu: 292.6 ms][wall: 504.2 ms]
+[INFO    ][2026-02-03 10:39:12][log_stats                ] [1,    60] first moment: 1.16e-06 [5.01e-09 1.15e-04] second moment: 6.80e-10 [1.87e-14 9.66e-08]
+[INFO    ][2026-02-03 10:39:12][log_stats                ] [1,    60] enc_grad_stats: f/l[5.64e-06 8.89e-06] mn/mx(4.99e-06, 2.68e-05) 0.00e+00
+[INFO    ][2026-02-03 10:39:12][log_stats                ] [1,    60] pred_grad_stats: f/l[1.74e-02 1.38e-02] mn/mx(6.85e-04, 2.95e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:16][log_stats                ] [1,    70] loss: 0.162 | p0.162 r0.985 | input_var: 0.369 0.111 | masks: [49.2, 15.9] [wd: 1.41e-01] [lr: 4.50e-04] [mem: 1.02e+04] [gpu: 281.0 ms][wall: 490.5 ms]
+[INFO    ][2026-02-03 10:39:16][log_stats                ] [1,    70] first moment: 9.47e-07 [2.44e-09 8.54e-05] second moment: 7.14e-10 [1.86e-14 1.03e-07]
+[INFO    ][2026-02-03 10:39:16][log_stats                ] [1,    70] enc_grad_stats: f/l[1.48e-05 1.16e-05] mn/mx(1.04e-05, 3.79e-05) 0.00e+00
+[INFO    ][2026-02-03 10:39:16][log_stats                ] [1,    70] pred_grad_stats: f/l[8.71e-03 7.25e-03] mn/mx(3.05e-04, 2.28e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:20][log_stats                ] [1,    80] loss: 0.147 | p0.147 r0.985 | input_var: 0.373 0.112 | masks: [49.1, 15.6] [wd: 1.67e-01] [lr: 4.05e-04] [mem: 1.02e+04] [gpu: 272.2 ms][wall: 481.9 ms]
+[INFO    ][2026-02-03 10:39:20][log_stats                ] [1,    80] first moment: 5.97e-07 [8.32e-10 7.25e-05] second moment: 7.37e-10 [1.84e-14 1.07e-07]
+[INFO    ][2026-02-03 10:39:20][log_stats                ] [1,    80] enc_grad_stats: f/l[2.65e-05 2.54e-05] mn/mx(2.11e-05, 7.32e-05) 0.00e+00
+[INFO    ][2026-02-03 10:39:20][log_stats                ] [1,    80] pred_grad_stats: f/l[9.97e-03 7.69e-03] mn/mx(2.76e-04, 2.36e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:25][log_stats                ] [1,    90] loss: 0.134 | p0.134 r0.985 | input_var: 0.368 0.111 | masks: [48.7, 15.8] [wd: 1.95e-01] [lr: 3.57e-04] [mem: 1.02e+04] [gpu: 265.4 ms][wall: 475.2 ms]
+[INFO    ][2026-02-03 10:39:25][log_stats                ] [1,    90] first moment: 7.19e-07 [3.09e-10 6.35e-05] second moment: 7.53e-10 [1.82e-14 1.10e-07]
+[INFO    ][2026-02-03 10:39:25][log_stats                ] [1,    90] enc_grad_stats: f/l[2.57e-06 4.20e-06] mn/mx(2.37e-06, 1.28e-05) 0.00e+00
+[INFO    ][2026-02-03 10:39:25][log_stats                ] [1,    90] pred_grad_stats: f/l[7.99e-03 6.52e-03] mn/mx(2.64e-04, 2.39e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:29][log_stats                ] [1,   100] loss: 0.123 | p0.123 r0.986 | input_var: 0.365 0.111 | masks: [48.8, 16.2] [wd: 2.23e-01] [lr: 3.08e-04] [mem: 1.02e+04] [gpu: 260.0 ms][wall: 469.2 ms]
+[INFO    ][2026-02-03 10:39:29][log_stats                ] [1,   100] first moment: 3.60e-07 [4.35e-10 3.67e-05] second moment: 7.56e-10 [1.80e-14 1.09e-07]
+[INFO    ][2026-02-03 10:39:29][log_stats                ] [1,   100] enc_grad_stats: f/l[9.18e-07 1.40e-06] mn/mx(8.14e-07, 4.60e-06) 0.00e+00
+[INFO    ][2026-02-03 10:39:29][log_stats                ] [1,   100] pred_grad_stats: f/l[3.02e-03 2.63e-03] mn/mx(1.04e-04, 2.25e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:33][log_stats                ] [1,   110] loss: 0.114 | p0.114 r0.986 | input_var: 0.362 0.111 | masks: [48.6, 16.0] [wd: 2.51e-01] [lr: 2.59e-04] [mem: 1.02e+04] [gpu: 255.5 ms][wall: 464.5 ms]
+[INFO    ][2026-02-03 10:39:33][log_stats                ] [1,   110] first moment: 4.56e-07 [3.26e-10 5.77e-05] second moment: 7.60e-10 [1.78e-14 1.10e-07]
+[INFO    ][2026-02-03 10:39:33][log_stats                ] [1,   110] enc_grad_stats: f/l[3.01e-05 1.25e-05] mn/mx(8.04e-06, 3.33e-05) 0.00e+00
+[INFO    ][2026-02-03 10:39:33][log_stats                ] [1,   110] pred_grad_stats: f/l[4.38e-03 3.36e-03] mn/mx(1.71e-04, 1.76e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:37][log_stats                ] [1,   120] loss: 0.106 | p0.106 r0.986 | input_var: 0.360 0.111 | masks: [49.1, 16.2] [wd: 2.78e-01] [lr: 2.12e-04] [mem: 1.03e+04] [gpu: 251.8 ms][wall: 461.6 ms]
+[INFO    ][2026-02-03 10:39:37][log_stats                ] [1,   120] first moment: 4.69e-07 [7.98e-10 3.83e-05] second moment: 7.60e-10 [1.77e-14 1.10e-07]
+[INFO    ][2026-02-03 10:39:37][log_stats                ] [1,   120] enc_grad_stats: f/l[7.56e-07 1.14e-06] mn/mx(6.84e-07, 3.89e-06) 0.00e+00
+[INFO    ][2026-02-03 10:39:37][log_stats                ] [1,   120] pred_grad_stats: f/l[2.29e-03 2.66e-03] mn/mx(1.02e-04, 1.79e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:41][log_stats                ] [1,   130] loss: 0.100 | p0.100 r0.986 | input_var: 0.360 0.111 | masks: [48.9, 16.1] [wd: 3.04e-01] [lr: 1.67e-04] [mem: 1.03e+04] [gpu: 248.6 ms][wall: 458.1 ms]
+[INFO    ][2026-02-03 10:39:41][log_stats                ] [1,   130] first moment: 6.49e-07 [1.76e-09 5.21e-05] second moment: 7.60e-10 [1.75e-14 1.10e-07]
+[INFO    ][2026-02-03 10:39:41][log_stats                ] [1,   130] enc_grad_stats: f/l[7.75e-05 8.71e-05] mn/mx(6.08e-05, 2.06e-04) 0.00e+00
+[INFO    ][2026-02-03 10:39:41][log_stats                ] [1,   130] pred_grad_stats: f/l[1.34e-02 2.60e-03] mn/mx(4.37e-04, 1.54e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:46][log_stats                ] [1,   140] loss: 0.094 | p0.094 r0.986 | input_var: 0.362 0.111 | masks: [48.7, 15.7] [wd: 3.28e-01] [lr: 1.26e-04] [mem: 1.03e+04] [gpu: 245.9 ms][wall: 455.2 ms]
+[INFO    ][2026-02-03 10:39:46][log_stats                ] [1,   140] first moment: 3.58e-07 [4.35e-10 3.61e-05] second moment: 7.60e-10 [1.73e-14 1.09e-07]
+[INFO    ][2026-02-03 10:39:46][log_stats                ] [1,   140] enc_grad_stats: f/l[1.60e-05 2.20e-05] mn/mx(1.40e-05, 5.19e-05) 0.00e+00
+[INFO    ][2026-02-03 10:39:46][log_stats                ] [1,   140] pred_grad_stats: f/l[4.07e-03 1.68e-03] mn/mx(1.72e-04, 1.60e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:50][log_stats                ] [1,   150] loss: 0.089 | p0.089 r0.987 | input_var: 0.363 0.111 | masks: [48.7, 15.7] [wd: 3.49e-01] [lr: 8.89e-05] [mem: 1.03e+04] [gpu: 243.5 ms][wall: 452.6 ms]
+[INFO    ][2026-02-03 10:39:50][log_stats                ] [1,   150] first moment: 3.92e-07 [2.36e-10 3.41e-05] second moment: 7.58e-10 [1.71e-14 1.09e-07]
+[INFO    ][2026-02-03 10:39:50][log_stats                ] [1,   150] enc_grad_stats: f/l[1.29e-06 9.08e-07] mn/mx(7.49e-07, 3.00e-06) 0.00e+00
+[INFO    ][2026-02-03 10:39:50][log_stats                ] [1,   150] pred_grad_stats: f/l[1.38e-03 1.40e-03] mn/mx(7.28e-05, 1.45e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:54][log_stats                ] [1,   160] loss: 0.084 | p0.084 r0.987 | input_var: 0.368 0.111 | masks: [48.5, 15.6] [wd: 3.67e-01] [lr: 5.77e-05] [mem: 1.03e+04] [gpu: 241.4 ms][wall: 449.4 ms]
+[INFO    ][2026-02-03 10:39:54][log_stats                ] [1,   160] first moment: 3.45e-07 [1.24e-10 3.51e-05] second moment: 7.59e-10 [1.70e-14 1.09e-07]
+[INFO    ][2026-02-03 10:39:54][log_stats                ] [1,   160] enc_grad_stats: f/l[1.17e-06 2.00e-06] mn/mx(1.05e-06, 5.57e-06) 0.00e+00
+[INFO    ][2026-02-03 10:39:54][log_stats                ] [1,   160] pred_grad_stats: f/l[3.67e-03 3.60e-03] mn/mx(1.29e-04, 1.49e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:39:58][log_stats                ] [1,   170] loss: 0.081 | p0.081 r0.987 | input_var: 0.368 0.112 | masks: [48.7, 15.6] [wd: 3.82e-01] [lr: 3.28e-05] [mem: 1.03e+04] [gpu: 239.6 ms][wall: 447.0 ms]
+[INFO    ][2026-02-03 10:39:58][log_stats                ] [1,   170] first moment: 5.15e-07 [6.45e-10 4.09e-05] second moment: 7.55e-10 [1.68e-14 1.08e-07]
+[INFO    ][2026-02-03 10:39:58][log_stats                ] [1,   170] enc_grad_stats: f/l[1.78e-05 2.48e-05] mn/mx(1.56e-05, 5.90e-05) 0.00e+00
+[INFO    ][2026-02-03 10:39:58][log_stats                ] [1,   170] pred_grad_stats: f/l[4.38e-03 1.88e-03] mn/mx(1.59e-04, 1.18e-01) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:40:02][log_stats                ] [1,   180] loss: 0.078 | p0.078 r0.987 | input_var: 0.367 0.111 | masks: [48.5, 15.6] [wd: 3.92e-01] [lr: 1.48e-05] [mem: 1.03e+04] [gpu: 238.0 ms][wall: 445.8 ms]
+[INFO    ][2026-02-03 10:40:02][log_stats                ] [1,   180] first moment: 5.88e-07 [9.16e-10 4.63e-05] second moment: 7.50e-10 [1.66e-14 1.08e-07]
+[INFO    ][2026-02-03 10:40:02][log_stats                ] [1,   180] enc_grad_stats: f/l[3.00e-06 3.92e-06] mn/mx(2.57e-06, 9.79e-06) 0.00e+00
+[INFO    ][2026-02-03 10:40:02][log_stats                ] [1,   180] pred_grad_stats: f/l[8.62e-04 7.65e-04] mn/mx(8.74e-05, 9.92e-02) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:40:06][log_stats                ] [1,   190] loss: 0.074 | p0.074 r0.987 | input_var: 0.367 0.112 | masks: [48.5, 15.5] [wd: 3.98e-01] [lr: 4.11e-06] [mem: 1.03e+04] [gpu: 236.6 ms][wall: 444.4 ms]
+[INFO    ][2026-02-03 10:40:06][log_stats                ] [1,   190] first moment: 5.25e-07 [7.92e-11 5.21e-05] second moment: 7.45e-10 [1.65e-14 1.07e-07]
+[INFO    ][2026-02-03 10:40:06][log_stats                ] [1,   190] enc_grad_stats: f/l[5.16e-07 9.78e-07] mn/mx(5.04e-07, 2.64e-06) 0.00e+00
+[INFO    ][2026-02-03 10:40:06][log_stats                ] [1,   190] pred_grad_stats: f/l[1.83e-03 1.04e-03] mn/mx(3.91e-05, 8.41e-02) 0.00e+00
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+DEBUG CLIPS SHAPE BEFORE ENCODER: torch.Size([16, 3, 224, 224]) torch.float32
+[INFO    ][2026-02-03 10:40:10][main                     ] avg. loss 0.072
+
+============================= JOB FEEDBACK =============================
+
+NodeName=uc2n566
+Job ID: 3085329
+Cluster: uc3
+User/Group: ul_upf92/ul_student
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 16
+CPU Utilized: 00:01:56
+CPU Efficiency: 3.19% of 01:00:32 core-walltime
+Job Wall-clock time: 00:03:47
+Memory Utilized: 1.25 GB
+Memory Efficiency: 1.95% of 64.00 GB (64.00 GB/node)

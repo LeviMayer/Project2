@@ -1,0 +1,14 @@
+Process Process-1:
+Traceback (most recent call last):
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/multiprocessing/process.py", line 315, in _bootstrap
+    self.run()
+  File "/home/ul/ul_student/ul_upf92/.conda/envs/jepa/lib/python3.9/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/app/main.py", line 60, in process_main
+    app_main(params['app'], args=params)
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/app/scaffold.py", line 19, in main
+    return importlib.import_module(f'app.{app}.train').main(
+  File "/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/app/vjepa/train.py", line 259, in main
+    image_folder=image_folder,
+NameError: name 'image_folder' is not defined
+[rank0]:[W202 23:03:05.303762116 ProcessGroupNCCL.cpp:1479] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())

@@ -1,2 +1,21 @@
 .*.swp
 *.pyc
+<<<<<<< HEAD
+=======
+
+# datasets
+data_lineex_imfolder/
+
+# outputs / checkpoints / artifacts
+outputs/
+*.pth
+*.pth.tar
+*.pt
+*.ckpt
+*.tar
+
+# logs
+logs/
+*.out
+*.err
+>>>>>>> a020871fe59713b7104bca5f017aae9c4d6d63c1
