@@ -184,6 +184,9 @@ def main(args, resume_preempt=False):
             dir=folder,                  # speichert wandb files im output-folder
             reinit=True,
         )
+    else:
+        os.environ["WANDB_DISABLED"] = "true"
+        
     if rank == 0:
         wandb.config.update({
             "world_size": world_size,
@@ -372,7 +375,7 @@ def main(args, resume_preempt=False):
         try:
             torch.save(save_dict, path)
             if rank == 0 and wandb_run is not None:
-                wandb.log({"checkpoint_path": path})
+                wandb_run.log({"checkpoint_path": path})
         except Exception as e:
             logger.info(f'Encountered exception when saving checkpoint: {e}')
 
@@ -618,7 +621,7 @@ def main(args, resume_preempt=False):
                                grad_stats_pred.max,
                                grad_stats_pred.global_norm))
                 if rank == 0 and wandb_run is not None:
-                    wandb.log({
+                    wandb_run.log({
                         "epoch": epoch + 1,
                         "itr": itr,
                         "loss/avg": loss_meter.avg,
