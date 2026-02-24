@@ -11,11 +11,8 @@ import torchvision.transforms as transforms
 import src.datasets.utils.video.transforms as video_transforms
 from src.datasets.utils.video.randerase import RandomErasing
 
-<<<<<<< HEAD
-=======
 from PIL import Image
 import numpy as np
->>>>>>> a020871fe59713b7104bca5f017aae9c4d6d63c1
 
 def make_transforms(
     random_horizontal_flip=True,
@@ -90,8 +87,6 @@ class VideoTransform(object):
 
     def __call__(self, buffer):
 
-<<<<<<< HEAD
-=======
         if isinstance(buffer, Image.Image):
             buffer = buffer.convert("RGB")
             buffer = np.array(buffer)
@@ -104,7 +99,6 @@ class VideoTransform(object):
         if isinstance(buffer, np.ndarray) and buffer.ndim == 3:
             buffer = buffer[None, ...]       # 1,H,W,3
 
->>>>>>> a020871fe59713b7104bca5f017aae9c4d6d63c1
         if self.auto_augment:
             buffer = [transforms.ToPILImage()(frame) for frame in buffer]
             buffer = self.autoaug_transform(buffer)
@@ -115,8 +109,6 @@ class VideoTransform(object):
             buffer = torch.tensor(buffer, dtype=torch.float32)
 
         buffer = buffer.permute(3, 0, 1, 2)  # T H W C -> C T H W
-<<<<<<< HEAD
-=======
         
         #new debug
         if buffer.shape[0] != 3:
@@ -124,7 +116,6 @@ class VideoTransform(object):
 
         assert buffer.shape[0] == 3, f"Expected 3 channels, got {buffer.shape}"
 
->>>>>>> a020871fe59713b7104bca5f017aae9c4d6d63c1
 
         buffer = self.spatial_transform(
             images=buffer,

@@ -20,6 +20,7 @@ except Exception:
 import copy
 import time
 import numpy as np
+import wandb
 
 import torch
 import torch.multiprocessing as mp
@@ -105,10 +106,7 @@ def main(args, resume_preempt=False):
     dataset_type = cfgs_data.get('dataset_type', 'videodataset')
     mask_type = cfgs_data.get('mask_type', 'multiblock3d')
     dataset_paths = cfgs_data.get('datasets', [])
-<<<<<<< HEAD
-=======
     image_folder = cfgs_data.get('image_folder', None)
->>>>>>> a020871fe59713b7104bca5f017aae9c4d6d63c1
     datasets_weights = cfgs_data.get('datasets_weights', None)
     if datasets_weights is not None:
         assert len(datasets_weights) == len(dataset_paths), 'Must have one sampling weight specified for each dataset'
@@ -251,8 +249,6 @@ def main(args, resume_preempt=False):
         motion_shift=motion_shift,
         crop_size=crop_size)
 
-<<<<<<< HEAD
-=======
     # lineex/hpc yaml parsing sometimes returns list; ImageFolder expects str
     if isinstance(dataset_paths, (list, tuple)):
         assert len(dataset_paths) > 0, "dataset_paths is empty"
@@ -261,15 +257,11 @@ def main(args, resume_preempt=False):
     assert isinstance(dataset_paths, str) and len(dataset_paths) > 0, f"bad dataset_paths={dataset_paths}"
     assert isinstance(image_folder, str) and len(image_folder) > 0, f"bad image_folder={image_folder}"
 
->>>>>>> a020871fe59713b7104bca5f017aae9c4d6d63c1
     # -- init data-loaders/samplers
     (unsupervised_loader,
      unsupervised_sampler) = init_data(
          data=dataset_type,
-<<<<<<< HEAD
-=======
          image_folder=image_folder,
->>>>>>> a020871fe59713b7104bca5f017aae9c4d6d63c1
          root_path=dataset_paths,
          batch_size=batch_size,
          training=True,
@@ -408,15 +400,6 @@ def main(args, resume_preempt=False):
                 'Currently require num encoder masks = num predictor masks'
 
             def load_clips():
-<<<<<<< HEAD
-                # -- unsupervised video clips
-                # Put each clip on the GPU and concatenate along batch
-                # dimension
-                clips = torch.cat([u.to(device, non_blocking=True) for u in udata[0]], dim=0)
-
-                # Put each mask-enc/mask-pred pair on the GPU and reuse the
-                # same mask pair for each clip
-=======
                 # udata[0] ist im Video-Setup oft eine LISTE von Clips (multi-clip),
                 # bei ImageFolder/LineEx ist es häufig ein TENSOR (Batch).
                 u0 = udata[0]
@@ -434,7 +417,6 @@ def main(args, resume_preempt=False):
                     clips = clips.squeeze(2)
 
                 # Put each mask pair on GPU + repeat for num_clips
->>>>>>> a020871fe59713b7104bca5f017aae9c4d6d63c1
                 _masks_enc, _masks_pred = [], []
                 for _me, _mp in zip(masks_enc, masks_pred):
                     _me = _me.to(device, non_blocking=True)
@@ -445,11 +427,8 @@ def main(args, resume_preempt=False):
                     _masks_pred.append(_mp)
 
                 return (clips, _masks_enc, _masks_pred)
-<<<<<<< HEAD
-=======
 
 
->>>>>>> a020871fe59713b7104bca5f017aae9c4d6d63c1
             clips, masks_enc, masks_pred = load_clips()
 
             for _i, m in enumerate(mask_meters):
@@ -495,11 +474,8 @@ def main(args, resume_preempt=False):
                 # Step 1. Forward
                 loss_jepa, loss_reg = 0., 0.
                 with torch.cuda.amp.autocast(dtype=dtype, enabled=mixed_precision):
-<<<<<<< HEAD
-=======
                     print("DEBUG CLIPS SHAPE BEFORE ENCODER:", clips.shape, clips.dtype)
 
->>>>>>> a020871fe59713b7104bca5f017aae9c4d6d63c1
                     h = forward_target(clips)
                     z = forward_context(clips, h)
                     loss_jepa = loss_fn(z, h)  # jepa prediction loss
