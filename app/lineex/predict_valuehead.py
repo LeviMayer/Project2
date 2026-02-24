@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import json
 import math
+import wandb
 
 import numpy as np
 import torch
@@ -293,8 +294,24 @@ def main():
     ap.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--overlay", action="store_true", help="Save debug overlay PNG per image")
 
-    args = ap.parse_args()
+    ap.add_argument("--wandb", action="store_true", help="Log predictions to Weights & Biases")
+    ap.add_argument("--wandb_project", type=str, default="lineex-valuehead")
+    ap.add_argument("--wandb_run_name", type=str, default="predict")
+    ap.add_argument("--wandb_mode", type=str, default=None, choices=[None, "online", "offline", "disabled"])
+    ap.add_argument("--log_images", action="store_true", help="Log input+overlay images to W&B")
+    ap.add_argument("--max_log", type=int, default=50, help="Max number of images to log to W&B")
 
+    args = ap.parse_args()
+    run = None
+    if args.wandb:
+        if args.wandb_mode is not None:
+            os.environ["WANDB_MODE"] = args.wandb_mode  # "offline" on HPC, later wandb sync
+
+        run = wandb.init(
+            project=args.wandb_project,
+            name=args.wandb_run_name,
+            config=vars(args),
+        )
     device = torch.device(args.device)
 
     # IMPORTANT: run from repo root so imports work
@@ -339,6 +356,17 @@ def main():
             out_csv=out_csv,
             out_overlay=out_ov,
         )
+        if run is not None:
+            # quick stats
+            # read back CSV? (cheap) OR log overlay + some meta only
+            log_dict = {"pred/image_name": rel}
+
+            if out_ov is not None and args.log_images and n <= args.max_log:
+                # log input + overlay
+                log_dict["pred/input"] = wandb.Image(str(img_path))
+                log_dict["pred/overlay"] = wandb.Image(str(out_ov))
+
+            wandb.log(log_dict, step=n)
         n += 1
         if n % 50 == 0:
             print(f"[{n}] done")
@@ -346,6 +374,10 @@ def main():
     print(f"Done. Wrote {n} CSVs to: {out_csv_dir}")
     if args.overlay:
         print(f"Overlays in: {out_ov_dir}")
+        
+    if run is not None:
+        run.finish()
+    
 
 
 if __name__ == "__main__":
