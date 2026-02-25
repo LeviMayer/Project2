@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, random_split
 
 import wandb
 
-from lineex_dataset import LineExDataset
+from scripts.lineex_dataset import LineExDataset
 from app.vjepa.utils import init_video_model
 
 

@@ -49,27 +49,40 @@ def seed_everything(seed: int):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
+def read_manifest(manifest_path: str, out_dir: str):
+    """
+    Reads manifest.jsonl and returns items with absolute paths.
+    IMPORTANT: paths in manifest are relative to the manifest directory (dataset root),
+    not to the valuehead out_dir.
+    Also normalizes Windows backslashes.
+    """
+    data_root = os.path.dirname(os.path.abspath(manifest_path))
 
-def read_manifest(manifest_path: str, out_dir: str) -> List[dict]:
+    def _fix(p):
+        if p is None:
+            return None
+        # normalize windows slashes from manifest
+        p = p.replace("\\", "/")
+        # if relative -> resolve w.r.t. manifest directory
+        if not os.path.isabs(p):
+            p = os.path.join(data_root, p)
+        # normalize again
+        return os.path.normpath(p)
+
     items = []
     with open(manifest_path, "r") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
-            j = json.loads(line)
-            # manifest paths are relative to out_dir in your generator
-            full_rel = j["full"]
-            csv_rel = j["csv"]
-            full_path = os.path.join(out_dir, full_rel)
-            csv_path = os.path.join(out_dir, csv_rel)
-            items.append({
-                "id": j.get("id"),
-                "full": full_path,
-                "csv": csv_path,
-                "n_lines": j.get("n_lines", 1),
-                "n_points": j.get("n_points", None),
-            })
+            it = json.loads(line)
+
+            it["full"] = _fix(it.get("full"))
+            it["masked"] = _fix(it.get("masked"))
+            it["csv"] = _fix(it.get("csv"))
+
+            items.append(it)
+
     return items
 
 
