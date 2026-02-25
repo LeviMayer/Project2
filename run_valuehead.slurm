@@ -12,7 +12,6 @@
 set -euo pipefail
 mkdir -p logs
 
-# Minimal environment (weil export=NONE)
 export PATH=/usr/bin:/bin
 export HOME="$HOME"
 export SLURM_SUBMIT_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
@@ -26,7 +25,6 @@ module load devel/miniforge
 
 CONDA_EXE="/opt/bwhpc/common/devel/miniforge/25.3.1-py3.12/bin/conda"
 
-# Headless safe
 export QT_QPA_PLATFORM=offscreen
 export MPLBACKEND=Agg
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
@@ -44,28 +42,25 @@ nvidia-smi || true
 # -------- PATHS --------
 JEPA_DIR="/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa"
 
-# Daten aus Generator:
-DATA_DIR="$JEPA_DIR/out_lineex"
-MANIFEST="$DATA_DIR/manifest.jsonl"
+# Generator output (wo manifest.jsonl wirklich liegt!)
+DATA_OUT="$JEPA_DIR/out_lineex"
+MANIFEST="$DATA_OUT/manifest.jsonl"
 
-# JEPA Checkpoints:
+# JEPA checkpoint folder
 JEPA_CKPT_DIR="$JEPA_DIR/outputs/jepa_lineex"
 
-# Output vom ValueHead:
+# ValueHead output
 VH_OUTDIR="$JEPA_DIR/outputs/valuehead_lineex"
 mkdir -p "$VH_OUTDIR"
 # -----------------------
 
-# Optional: WANDB Settings (falls du willst)
-export WANDB_PROJECT="lineex-project"
-export WANDB_RUN_NAME="valuehead_K64_run1"
-# export WANDB_ENTITY="dein_username_oder_team"   # nur wenn nötig
-# export WANDB_MODE="online"                      # oder "offline"
+# wandb (optional)
+WANDB_PROJECT="lineex-project"
+WANDB_RUN_NAME="valuehead_K64_run1"
 
-# --- Pick checkpoint automatically if not set ---
+# --- auto-pick checkpoint ---
 CHECKPOINT="${CHECKPOINT:-}"
 if [[ -z "${CHECKPOINT}" ]]; then
-  # bevorzugt: latest, sonst neuester *.tar
   if ls "$JEPA_CKPT_DIR"/*latest*.pth.tar >/dev/null 2>&1; then
     CHECKPOINT="$(ls -1t "$JEPA_CKPT_DIR"/*latest*.pth.tar | head -n 1)"
   elif ls "$JEPA_CKPT_DIR"/*.pth.tar >/dev/null 2>&1; then
@@ -78,29 +73,23 @@ if [[ -z "${CHECKPOINT}" ]]; then
   fi
 fi
 
-echo "DATA_DIR:     $DATA_DIR"
-echo "MANIFEST:     $MANIFEST"
-echo "JEPA_CKPT:    $CHECKPOINT"
-echo "VH_OUTDIR:    $VH_OUTDIR"
+echo "DATA_OUT:   $DATA_OUT"
+echo "MANIFEST:   $MANIFEST"
+echo "CHECKPOINT: $CHECKPOINT"
+echo "VH_OUTDIR:  $VH_OUTDIR"
 
-# Sanity checks
 test -f "$MANIFEST" || { echo "ERROR: manifest not found: $MANIFEST"; exit 1; }
-test -d "$DATA_DIR/images" || { echo "ERROR: images folder missing: $DATA_DIR/images"; exit 1; }
-test -d "$DATA_DIR/labels" || { echo "ERROR: labels folder missing: $DATA_DIR/labels"; exit 1; }
 test -f "$CHECKPOINT" || { echo "ERROR: checkpoint not found: $CHECKPOINT"; exit 1; }
 
 cd "$JEPA_DIR"
 
-# Torch sanity
 "$CONDA_EXE" run -n jepa --no-capture-output python -c "import torch; print(torch.__version__); print(torch.cuda.is_available()); print(torch.cuda.device_count())"
 
-# Run ValueHead training
 "$CONDA_EXE" run -n jepa --no-capture-output \
   python -u train_valuehead.py \
     --out_dir "$VH_OUTDIR" \
-    --data_dir "$DATA_DIR" \
     --manifest "$MANIFEST" \
-    --jepa_ckpt "$CHECKPOINT" \
+    --checkpoint "$CHECKPOINT" \
     --K 64 \
     --epochs 20 \
     --batch_size 64 \
