@@ -305,11 +305,11 @@ def main():
     ap.add_argument("--normalize_y_to_0_1", action="store_true")
 
     # training
-    ap.add_argument("--epochs", type=int, default=10)
+    ap.add_argument("--epochs", type=int, default=20)
     ap.add_argument("--batch_size", type=int, default=64)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--weight_decay", type=float, default=0.0)
-    ap.add_argument("--num_workers", type=int, default=4)
+    ap.add_argument("--num_workers", type=int, default=8)
     ap.add_argument("--fp16", action="store_true")
     ap.add_argument("--seed", type=int, default=42)
 

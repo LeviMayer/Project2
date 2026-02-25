@@ -91,7 +91,7 @@ cd "$JEPA_DIR"
     --manifest "$MANIFEST" \
     --checkpoint "$CHECKPOINT" \
     --K 64 \
-    --epochs 20 \
+    --epochs 40 \
     --batch_size 64 \
     --lr 1e-3 \
     --fp16 \
