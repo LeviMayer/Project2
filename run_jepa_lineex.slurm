@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=jepa_lineex
-#SBATCH --partition=gpu_a100_short
+#SBATCH --partition=gpu_a100_il
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64gb
-#SBATCH --time=00:30:00
+#SBATCH --time=06:00:00
 #SBATCH --output=logs/slurm_%j.out
 #SBATCH --error=logs/slurm_%j.err
 #SBATCH --export=NONE
