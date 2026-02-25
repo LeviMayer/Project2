@@ -654,7 +654,7 @@ def main(args, resume_preempt=False):
                 save_every_path = os.path.join(folder, save_every_file)
                 save_checkpoint(epoch + 1, save_every_path)
 
-        if rank == 0 and wandb_run is not None:
+        if epoch == (num_epochs - 1) and rank == 0 and wandb_run is not None:
             try:
                 wandb_run.finish()
             except Exception:
