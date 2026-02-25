@@ -45,7 +45,7 @@ nvidia-smi || true
 JEPA_DIR="/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa"
 
 # Daten aus Generator:
-DATA_DIR="$JEPA_DIR/outputs/out_lineex"
+DATA_DIR="$JEPA_DIR/out_lineex"
 MANIFEST="$DATA_DIR/manifest.jsonl"
 
 # JEPA Checkpoints:
