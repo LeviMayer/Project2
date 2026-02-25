@@ -186,9 +186,9 @@ def main(args, resume_preempt=False):
         )
     else:
         os.environ["WANDB_DISABLED"] = "true"
-        
+
     if rank == 0:
-        wandb.config.update({
+        wandb_run.config.update({
             "world_size": world_size,
             "dataset_paths": dataset_paths,
             "image_folder": image_folder,
@@ -652,4 +652,7 @@ def main(args, resume_preempt=False):
                 save_checkpoint(epoch + 1, save_every_path)
 
         if rank == 0 and wandb_run is not None:
-            wandb.finish()
+            try:
+                wandb_run.finish()
+            except Exception:
+                pass
