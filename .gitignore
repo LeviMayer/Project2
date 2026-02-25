@@ -10,7 +10,7 @@ data_lineex_imfolder/
 outputs/
 *.pth
 *.pth.tar
-*.pt
+#*.pt
 *.ckpt
 *.tar
 
