@@ -621,23 +621,26 @@ def main(args, resume_preempt=False):
                                grad_stats_pred.max,
                                grad_stats_pred.global_norm))
                 if rank == 0 and wandb_run is not None:
-                    wandb_run.log({
-                        "epoch": epoch + 1,
-                        "itr": itr,
-                        "loss/avg": loss_meter.avg,
-                        "loss/jepa_avg": jepa_loss_meter.avg,
-                        "loss/reg_avg": reg_loss_meter.avg,
-                        "loss/cur": loss,
-                        "lr": _new_lr,
-                        "wd": _new_wd,
-                        "grad/enc_global_norm": grad_stats.global_norm if grad_stats is not None else 0.0,
-                        "grad/pred_global_norm": grad_stats_pred.global_norm if grad_stats_pred is not None else 0.0,
-                        "input_var/avg": input_var_meter.avg,
-                        "input_var/min_avg": input_var_min_meter.avg,
-                        "time/gpu_ms_avg": gpu_time_meter.avg,
-                        "time/wall_ms_avg": wall_time_meter.avg,
-                        "mem/max_alloc_mb": torch.cuda.max_memory_allocated() / 1024.0**2 if torch.cuda.is_available() else 0.0,
-                    }, step=(epoch * ipe + itr))
+                    try:
+                        wandb_run.log({
+                            "epoch": epoch + 1,
+                            "itr": itr,
+                            "loss/avg": loss_meter.avg,
+                            "loss/jepa_avg": jepa_loss_meter.avg,
+                            "loss/reg_avg": reg_loss_meter.avg,
+                            "loss/cur": loss,
+                            "lr": _new_lr,
+                            "wd": _new_wd,
+                            "grad/enc_global_norm": grad_stats.global_norm if grad_stats is not None else 0.0,
+                            "grad/pred_global_norm": grad_stats_pred.global_norm if grad_stats_pred is not None else 0.0,
+                            "input_var/avg": input_var_meter.avg,
+                            "input_var/min_avg": input_var_min_meter.avg,
+                            "time/gpu_ms_avg": gpu_time_meter.avg,
+                            "time/wall_ms_avg": wall_time_meter.avg,
+                            "mem/max_alloc_mb": torch.cuda.max_memory_allocated() / 1024.0**2 if torch.cuda.is_available() else 0.0,
+                        }, step=(epoch * ipe + itr))
+                    except Exception as e:
+                        logger.info(f"[wandb] log skipped: {e}")
             log_stats()
             assert not np.isnan(loss), 'loss is nan'
 

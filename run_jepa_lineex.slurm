@@ -16,6 +16,7 @@ mkdir -p logs
 export PATH=/usr/bin:/bin
 export HOME="$HOME"
 export SLURM_SUBMIT_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
+export WANDB_START_METHOD=thread
 export WANDB_PROJECT=jepa_lineex
 
 echo "HOST: $(hostname)"
