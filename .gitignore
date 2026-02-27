@@ -8,6 +8,7 @@ data_lineex_imfolder/
 
 # outputs / checkpoints / artifacts
 # outputs/
+out_linex
 *.pth
 *.pth.tar
 #*.pt
