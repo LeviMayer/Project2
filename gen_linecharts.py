@@ -398,7 +398,7 @@ def generate(cfg: GenConfig):
 if __name__ == "__main__":
     cfg = GenConfig(
         out_dir="out_lineex",
-        n_samples=200,
+        n_samples=15000,
         img_size=224,
         make_masked=True,
         seed=42
