@@ -27,7 +27,13 @@ class ValueHead(nn.Module):
         super().__init__()
         self.K = int(K)
         self.pool = pool  # "cls" or "mean"
-        self.fc = nn.Linear(embed_dim, self.K)
+        self.mlp = nn.Sequential(
+            nn.Linear(embed_dim, 1024),
+            nn.GELU(),
+            nn.Linear(1024, 1024),
+            nn.GELU(),
+            nn.Linear(1024, K),
+        )
 
     def forward(self, tokens: torch.Tensor) -> torch.Tensor:
         if self.pool == "mean":

@@ -320,7 +320,7 @@ def main():
     ap.add_argument("--num_frames", type=int, default=1)
     ap.add_argument("--tubelet_size", type=int, default=1)
     ap.add_argument("--use_sdpa", action="store_true")
-    ap.add_argument("--pool", type=str, default="mean", choices=["mean", "cls"])
+    ap.add_argument("--pool", type=str, default="mean", choices=["cls", "mean"])
     ap.add_argument("--dropout", type=float, default=0.0)
 
     # output
