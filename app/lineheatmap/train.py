@@ -2,16 +2,14 @@ import argparse
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Dict, Tuple
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import yaml
+import wandb
 
-# Assumes you will add these files next:
-#   app/lineheatmap/dataset.py
-#   app/lineheatmap/model.py
 from app.lineheatmap.dataset import LineHeatmapDataset
 from app.lineheatmap.model import LineHeatmapModel
 from app.vjepa.utils import init_video_model
@@ -77,7 +75,8 @@ def evaluate(
     model.eval()
     losses = []
     for batch in loader:
-        images, heatmaps = batch["image"].to(device), batch["heatmap"].to(device)
+        images = batch["image"].to(device, non_blocking=True)
+        heatmaps = batch["heatmap"].to(device, non_blocking=True)
         logits = model(images)
         loss = criterion(logits, heatmaps)
         losses.append(loss.item())
@@ -87,7 +86,15 @@ def evaluate(
 def maybe_load_encoder_checkpoint(encoder: nn.Module, ckpt_path: str) -> None:
     """
     Load JEPA encoder weights from checkpoint.
-    Handles common checkpoint formats used in the JEPA repo.
+
+    Important:
+    init_video_model() returns a wrapper (e.g. MultiMaskWrapper),
+    while the checkpoint usually stores weights for the inner ViT backbone
+    with keys like:
+        pos_embed
+        patch_embed.proj.weight
+        blocks.0....
+    So we should load into encoder.backbone if it exists.
     """
     if ckpt_path is None or not os.path.exists(ckpt_path):
         print(f"[WARN] No encoder checkpoint loaded. ckpt_path={ckpt_path}")
@@ -96,44 +103,40 @@ def maybe_load_encoder_checkpoint(encoder: nn.Module, ckpt_path: str) -> None:
     print(f"[INFO] Loading encoder checkpoint: {ckpt_path}")
     ckpt = torch.load(ckpt_path, map_location="cpu")
 
-    # Typical JEPA checkpoints store encoder here
-    if "encoder" in ckpt:
+    # pick state dict
+    if "encoder" in ckpt and isinstance(ckpt["encoder"], dict):
         state_dict = ckpt["encoder"]
-
-    elif "target_encoder" in ckpt:
+    elif "target_encoder" in ckpt and isinstance(ckpt["target_encoder"], dict):
         state_dict = ckpt["target_encoder"]
-
-    elif "model" in ckpt:
+    elif "model" in ckpt and isinstance(ckpt["model"], dict):
         state_dict = ckpt["model"]
-
-    elif "state_dict" in ckpt:
+    elif "state_dict" in ckpt and isinstance(ckpt["state_dict"], dict):
         state_dict = ckpt["state_dict"]
-
     else:
         state_dict = ckpt
 
+    # remove only generic prefixes, keep layer names like pos_embed, blocks...
     cleaned = {}
-
     for k, v in state_dict.items():
+        nk = k
+        if nk.startswith("module."):
+            nk = nk[len("module."):]
+        if nk.startswith("encoder."):
+            nk = nk[len("encoder."):]
+        if nk.startswith("target_encoder."):
+            nk = nk[len("target_encoder."):]
+        if nk.startswith("backbone."):
+            nk = nk[len("backbone."):]
+        cleaned[nk] = v
 
-        # Remove common prefixes
-        if k.startswith("module."):
-            k = k[len("module."):]
-        if k.startswith("backbone."):
-            k = k[len("backbone."):]
-        if k.startswith("encoder."):
-            k = k[len("encoder."):]
-        if k.startswith("target_encoder."):
-            k = k[len("target_encoder."):]
+    # IMPORTANT: load into inner backbone if wrapper exists
+    target = encoder.backbone if hasattr(encoder, "backbone") else encoder
 
-        cleaned[k] = v
-
-    missing, unexpected = encoder.load_state_dict(cleaned, strict=False)
+    missing, unexpected = target.load_state_dict(cleaned, strict=False)
 
     print(f"[INFO] Encoder checkpoint loaded.")
     print(f"[INFO] Missing keys: {len(missing)}")
     print(f"[INFO] Unexpected keys: {len(unexpected)}")
-
     if missing:
         print("[INFO] Example missing keys:", missing[:10])
     if unexpected:
@@ -189,7 +192,6 @@ def build_model(cfg: Dict[str, Any], device: torch.device) -> nn.Module:
 
 def build_dataloaders(cfg: Dict[str, Any]) -> Tuple[DataLoader, DataLoader]:
     data_cfg = cfg["data"]
-    train_cfg = cfg["train"]
 
     train_ds = LineHeatmapDataset(
         root_dir=data_cfg["root_dir"],
@@ -247,12 +249,15 @@ def train_one_epoch(
     scaler: torch.cuda.amp.GradScaler,
     epoch: int,
     log_every: int,
+    global_step_start: int,
 ) -> Tuple[float, int]:
     model.train()
     running = 0.0
     steps = 0
 
     for step, batch in enumerate(loader, start=1):
+        global_step = global_step_start + step
+
         images = batch["image"].to(device, non_blocking=True)
         heatmaps = batch["heatmap"].to(device, non_blocking=True)
 
@@ -270,10 +275,19 @@ def train_one_epoch(
         steps += 1
 
         if step % log_every == 0:
+            avg_loss = running / steps
             print(
                 f"[epoch {epoch:03d} | step {step:05d}/{len(loader):05d}] "
-                f"loss={running / steps:.5f}"
+                f"loss={avg_loss:.5f}"
             )
+
+            if wandb.run is not None:
+                wandb.log({
+                    "global_step": global_step,
+                    "epoch": epoch,
+                    "train/loss_step": avg_loss,
+                    "train/lr": optimizer.param_groups[0]["lr"],
+                })
 
     return running / max(steps, 1), steps
 
@@ -316,6 +330,18 @@ def main() -> None:
     with open(out_dir / "train_config_dump.json", "w") as f:
         json.dump(cfg, f, indent=2)
 
+    wandb.init(
+        project=cfg["logging"].get("wandb_project", "linechart-extraction"),
+        name=cfg["logging"].get("run_name", "lineheatmap_run"),
+        config=cfg,
+    )
+
+    # define metrics so W&B uses sensible x-axes
+    wandb.define_metric("global_step")
+    wandb.define_metric("epoch")
+    wandb.define_metric("train/*", step_metric="global_step")
+    wandb.define_metric("val/*", step_metric="epoch")
+
     for epoch in range(1, epochs + 1):
         train_loss, n_steps = train_one_epoch(
             model=model,
@@ -326,14 +352,27 @@ def main() -> None:
             scaler=scaler,
             epoch=epoch,
             log_every=log_every,
+            global_step_start=global_step,
         )
         global_step += n_steps
 
         print(f"[INFO] epoch={epoch} train_loss={train_loss:.6f}")
 
+        if wandb.run is not None:
+            wandb.log({
+                "epoch": epoch,
+                "train/loss_epoch": train_loss,
+            })
+
         if epoch % eval_every == 0:
             val_loss = evaluate(model, val_loader, criterion, device)
             print(f"[INFO] epoch={epoch} val_loss={val_loss:.6f}")
+
+            if wandb.run is not None:
+                wandb.log({
+                    "epoch": epoch,
+                    "val/loss": val_loss,
+                })
 
             save_checkpoint(
                 save_path=str(out_dir / "latest.pth"),
@@ -358,7 +397,14 @@ def main() -> None:
                 )
                 print(f"[INFO] new best checkpoint saved (val={best_val:.6f})")
 
+                if wandb.run is not None:
+                    wandb.log({
+                        "epoch": epoch,
+                        "val/best_loss": best_val,
+                    })
+
     print("[INFO] training finished")
+    wandb.finish()
 
 
 if __name__ == "__main__":
