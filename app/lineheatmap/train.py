@@ -74,12 +74,14 @@ def evaluate(
 ) -> float:
     model.eval()
     losses = []
-    for batch in loader:
+    for i , batch in enumerate(loader):
         images = batch["image"].to(device, non_blocking=True)
         heatmaps = batch["heatmap"].to(device, non_blocking=True)
         logits = model(images)
         loss = criterion(logits, heatmaps)
         losses.append(loss.item())
+        if i % 100 == 0:
+            print(f"[VAL] step {i}/{len(loader)}")
     return float(sum(losses) / max(len(losses), 1))
 
 

@@ -5,8 +5,8 @@ tasks_per_node: 1
 
 data:
   root_dir: /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/out_lineex
-  train_manifest: manifest.jsonl
-  val_manifest: manifest.jsonl
+  train_manifest: train_manifest.jsonl
+  val_manifest: val_manifest.jsonl
 
   image_key: full
   crop_size: 224
@@ -14,7 +14,7 @@ data:
   patch_size: 16
 
   batch_size: 16
-  num_workers: 4
+  num_workers: 12
   pin_mem: true
 
   num_frames: 1
