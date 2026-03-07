@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=lineheatmap_lineex
-#SBATCH --partition=gpu_a100_short
+#SBATCH --partition=dev_gpu_a100
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64gb
