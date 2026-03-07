@@ -86,41 +86,58 @@ def evaluate(
 
 def maybe_load_encoder_checkpoint(encoder: nn.Module, ckpt_path: str) -> None:
     """
-    Loads a JEPA checkpoint as best effort.
-    Tries common key layouts without assuming a single exact format.
+    Load JEPA encoder weights from checkpoint.
+    Handles common checkpoint formats used in the JEPA repo.
     """
     if ckpt_path is None or not os.path.exists(ckpt_path):
         print(f"[WARN] No encoder checkpoint loaded. ckpt_path={ckpt_path}")
         return
 
+    print(f"[INFO] Loading encoder checkpoint: {ckpt_path}")
     ckpt = torch.load(ckpt_path, map_location="cpu")
-    state = None
 
-    # Common possibilities
-    for key in ["encoder", "target_encoder", "model", "state_dict"]:
-        if key in ckpt and isinstance(ckpt[key], dict):
-            state = ckpt[key]
-            break
+    # Typical JEPA checkpoints store encoder here
+    if "encoder" in ckpt:
+        state_dict = ckpt["encoder"]
 
-    if state is None and isinstance(ckpt, dict):
-        state = ckpt
+    elif "target_encoder" in ckpt:
+        state_dict = ckpt["target_encoder"]
 
-    # Strip possible prefixes
+    elif "model" in ckpt:
+        state_dict = ckpt["model"]
+
+    elif "state_dict" in ckpt:
+        state_dict = ckpt["state_dict"]
+
+    else:
+        state_dict = ckpt
+
     cleaned = {}
-    for k, v in state.items():
-        nk = k
-        for prefix in ["module.", "backbone.", "encoder."]:
-            if nk.startswith(prefix):
-                nk = nk[len(prefix):]
-        cleaned[nk] = v
+
+    for k, v in state_dict.items():
+
+        # Remove common prefixes
+        if k.startswith("module."):
+            k = k[len("module."):]
+        if k.startswith("backbone."):
+            k = k[len("backbone."):]
+        if k.startswith("encoder."):
+            k = k[len("encoder."):]
+        if k.startswith("target_encoder."):
+            k = k[len("target_encoder."):]
+
+        cleaned[k] = v
 
     missing, unexpected = encoder.load_state_dict(cleaned, strict=False)
-    print(f"[INFO] Loaded encoder checkpoint: {ckpt_path}")
-    print(f"[INFO] Missing keys: {len(missing)} | Unexpected keys: {len(unexpected)}")
+
+    print(f"[INFO] Encoder checkpoint loaded.")
+    print(f"[INFO] Missing keys: {len(missing)}")
+    print(f"[INFO] Unexpected keys: {len(unexpected)}")
+
     if missing:
-        print("[INFO] First missing keys:", missing[:10])
+        print("[INFO] Example missing keys:", missing[:10])
     if unexpected:
-        print("[INFO] First unexpected keys:", unexpected[:10])
+        print("[INFO] Example unexpected keys:", unexpected[:10])
 
 
 def build_model(cfg: Dict[str, Any], device: torch.device) -> nn.Module:
