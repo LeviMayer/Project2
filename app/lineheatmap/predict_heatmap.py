@@ -100,7 +100,7 @@ def save_visualization(image, gt_heatmap, pred_heatmap, out_path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/lineheatmap/lineheatmap_vitl16.yaml")
-    parser.add_argument("--checkpoint", default="outputs/lineheatmap_vitl16/best1.pth")
+    parser.add_argument("--checkpoint", default="outputs/lineheatmap_vitl16/best.pth")
     parser.add_argument("--num_samples", default=20, type=int)
     parser.add_argument("--out_dir", default="outputs/predictions")
 
