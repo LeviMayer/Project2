@@ -5,7 +5,6 @@ from typing import Dict, Any, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
 import torch
 import yaml
 
@@ -63,6 +62,46 @@ def build_model(cfg: Dict[str, Any], device: torch.device, checkpoint_path: str)
     return model
 
 
+def moving_average_1d(arr: np.ndarray, window: int) -> np.ndarray:
+    if window <= 1:
+        return arr.astype(np.float32)
+
+    pad = window // 2
+    padded = np.pad(arr, (pad, pad), mode="edge")
+    kernel = np.ones(window, dtype=np.float32) / float(window)
+    return np.convolve(padded, kernel, mode="valid").astype(np.float32)
+
+
+def fill_nans_by_interp(arr: np.ndarray) -> np.ndarray:
+    out = arr.astype(np.float32).copy()
+    valid = np.isfinite(out)
+    if not valid.any():
+        return out
+    xs = np.arange(len(out), dtype=np.float32)
+    out[~valid] = np.interp(xs[~valid], xs[valid], out[valid]).astype(np.float32)
+    return out
+
+
+def soft_argmax_1d(values: np.ndarray, power: float = 2.0) -> Tuple[float, float]:
+    """
+    Returns:
+      y_soft: soft argmax position
+      conf: max value in column
+    """
+    conf = float(values.max())
+    if conf <= 0:
+        return np.nan, conf
+
+    weights = np.maximum(values, 0.0) ** power
+    denom = float(weights.sum())
+    if denom <= 1e-8:
+        return float(np.argmax(values)), conf
+
+    y_coords = np.arange(len(values), dtype=np.float32)
+    y_soft = float((weights * y_coords).sum() / denom)
+    return y_soft, conf
+
+
 def extract_curve_from_heatmap(
     heatmap: np.ndarray,
     x_min: float,
@@ -70,55 +109,87 @@ def extract_curve_from_heatmap(
     y_min: float,
     y_max: float,
     threshold: float = 0.05,
-    smooth_window: int = 5,
+    smooth_window: int = 7,
+    crop_to_plot_area: bool = True,
+    plot_left_frac: float = 0.12,
+    plot_bottom_frac: float = 0.14,
+    plot_width_frac: float = 0.82,
+    plot_height_frac: float = 0.78,
+    peak_power: float = 2.0,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     heatmap: [H, W], values in [0,1]
-    returns:
-      xs_chart: [W]
-      ys_chart: [W]
-      conf:     [W]
+
+    Returns:
+      xs_chart: [N]
+      ys_chart: [N]
+      conf:     [N]
     """
     h, w = heatmap.shape
-    ys_px = []
+
+    if crop_to_plot_area:
+        left = int(round(plot_left_frac * w))
+        right = int(round((plot_left_frac + plot_width_frac) * w))
+        top = int(round((1.0 - (plot_bottom_frac + plot_height_frac)) * h))
+        bottom = int(round((1.0 - plot_bottom_frac) * h))
+
+        left = max(0, min(left, w - 1))
+        right = max(left + 1, min(right, w))
+        top = max(0, min(top, h - 1))
+        bottom = max(top + 1, min(bottom, h))
+
+        cropped = heatmap[top:bottom, left:right]
+    else:
+        left, top = 0, 0
+        cropped = heatmap
+
+    ch, cw = cropped.shape
+
+    ys_px_local = []
     conf = []
 
-    for x in range(w):
-        col = heatmap[:, x]
-        y = int(np.argmax(col))
-        c = float(col[y])
+    for x in range(cw):
+        col = cropped[:, x]
+        y_soft, c = soft_argmax_1d(col, power=peak_power)
 
         if c < threshold:
-            ys_px.append(np.nan)
+            ys_px_local.append(np.nan)
         else:
-            ys_px.append(float(y))
+            ys_px_local.append(y_soft)
         conf.append(c)
 
-    ys_px = np.asarray(ys_px, dtype=np.float32)
+    ys_px_local = np.asarray(ys_px_local, dtype=np.float32)
     conf = np.asarray(conf, dtype=np.float32)
 
-    # fill NaNs by interpolation
-    valid = np.isfinite(ys_px)
-    if valid.any():
-        xs_idx = np.arange(w, dtype=np.float32)
-        ys_px = np.interp(xs_idx, xs_idx[valid], ys_px[valid]).astype(np.float32)
+    ys_px_local = fill_nans_by_interp(ys_px_local)
+
+    if np.isfinite(ys_px_local).any():
+        ys_px_local = moving_average_1d(ys_px_local, smooth_window)
     else:
-        ys_px[:] = h // 2
+        ys_px_local[:] = ch / 2.0
 
-    # optional smoothing
-    if smooth_window > 1:
-        pad = smooth_window // 2
-        padded = np.pad(ys_px, (pad, pad), mode="edge")
-        kernel = np.ones(smooth_window, dtype=np.float32) / smooth_window
-        ys_px = np.convolve(padded, kernel, mode="valid").astype(np.float32)
+    xs_px = np.arange(cw, dtype=np.float32) + float(left)
+    ys_px = ys_px_local + float(top)
 
-    xs_px = np.arange(w, dtype=np.float32)
+    # Map pixels back to chart coordinates using plot area only
+    if crop_to_plot_area:
+        plot_left_px = float(left)
+        plot_right_px = float(right - 1)
+        plot_top_px = float(top)
+        plot_bottom_px = float(bottom - 1)
+    else:
+        plot_left_px = 0.0
+        plot_right_px = float(w - 1)
+        plot_top_px = 0.0
+        plot_bottom_px = float(h - 1)
 
-    xs_chart = x_min + (xs_px / max(w - 1, 1)) * (x_max - x_min)
-    ys_norm = 1.0 - (ys_px / max(h - 1, 1))
+    xs_norm = (xs_px - plot_left_px) / max(plot_right_px - plot_left_px, 1e-8)
+    xs_chart = x_min + xs_norm * (x_max - x_min)
+
+    ys_norm = 1.0 - ((ys_px - plot_top_px) / max(plot_bottom_px - plot_top_px, 1e-8))
     ys_chart = y_min + ys_norm * (y_max - y_min)
 
-    return xs_chart, ys_chart, conf
+    return xs_chart.astype(np.float32), ys_chart.astype(np.float32), conf.astype(np.float32)
 
 
 def save_curve_csv(path: Path, xs: np.ndarray, ys: np.ndarray, conf: np.ndarray) -> None:
@@ -128,6 +199,35 @@ def save_curve_csv(path: Path, xs: np.ndarray, ys: np.ndarray, conf: np.ndarray)
         writer.writerow(["x", "y", "confidence"])
         for x, y, c in zip(xs, ys, conf):
             writer.writerow([float(x), float(y), float(c)])
+
+
+def chart_to_pixel_coords(
+    xs_chart: np.ndarray,
+    ys_chart: np.ndarray,
+    image_h: int,
+    image_w: int,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+    plot_left_frac: float = 0.12,
+    plot_bottom_frac: float = 0.14,
+    plot_width_frac: float = 0.82,
+    plot_height_frac: float = 0.78,
+) -> Tuple[np.ndarray, np.ndarray]:
+    plot_left = plot_left_frac * image_w
+    plot_right = (plot_left_frac + plot_width_frac) * image_w
+
+    plot_bottom = (1.0 - plot_bottom_frac) * image_h
+    plot_top = (1.0 - (plot_bottom_frac + plot_height_frac)) * image_h
+
+    xs_norm = (xs_chart - x_min) / max(x_max - x_min, 1e-8)
+    ys_norm = (ys_chart - y_min) / max(y_max - y_min, 1e-8)
+
+    xs_px = plot_left + xs_norm * (plot_right - plot_left)
+    ys_px = plot_bottom - ys_norm * (plot_bottom - plot_top)
+
+    return xs_px.astype(np.float32), ys_px.astype(np.float32)
 
 
 def save_debug_figure(
@@ -147,6 +247,18 @@ def save_debug_figure(
     image = image_t.cpu().permute(1, 2, 0).numpy()
     gt_heatmap = gt_heatmap_t.cpu().squeeze(0).numpy()
 
+    h, w = pred_heatmap.shape
+    curve_x_px, curve_y_px = chart_to_pixel_coords(
+        xs_chart,
+        ys_chart,
+        image_h=h,
+        image_w=w,
+        x_min=x_min,
+        x_max=x_max,
+        y_min=y_min,
+        y_max=y_max,
+    )
+
     fig, axes = plt.subplots(1, 4, figsize=(14, 4))
 
     axes[0].imshow(image)
@@ -163,11 +275,7 @@ def save_debug_figure(
 
     axes[3].imshow(image)
     axes[3].imshow(pred_heatmap, cmap="hot", alpha=0.45)
-    axes[3].plot(
-        (xs_chart - x_min) / max(x_max - x_min, 1e-8) * (pred_heatmap.shape[1] - 1),
-        (1.0 - (ys_chart - y_min) / max(y_max - y_min, 1e-8)) * (pred_heatmap.shape[0] - 1),
-        linewidth=1.0,
-    )
+    axes[3].plot(curve_x_px, curve_y_px, linewidth=1.5)
     axes[3].set_title("overlay+curve")
     axes[3].axis("off")
 
@@ -180,12 +288,14 @@ def save_debug_figure(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/lineheatmap/lineheatmap_vitl16.yaml", type=str)
-    parser.add_argument("--checkpoint",default="outputs/lineheatmap_vitl16/best.pth", type=str)
+    parser.add_argument("--checkpoint", default="outputs/lineheatmap_vitl16/best.pth", type=str)
     parser.add_argument("--split", type=str, default="val", choices=["train", "val"])
     parser.add_argument("--num_samples", type=int, default=50)
     parser.add_argument("--start_index", type=int, default=0)
     parser.add_argument("--threshold", type=float, default=0.05)
-    parser.add_argument("--smooth_window", type=int, default=5)
+    parser.add_argument("--smooth_window", type=int, default=7)
+    parser.add_argument("--peak_power", type=float, default=2.0)
+    parser.add_argument("--no_crop_to_plot_area", action="store_true")
     parser.add_argument("--out_dir", type=str, default="outputs/extracted_curves")
     parser.add_argument("--save_debug", action="store_true")
     args = parser.parse_args()
@@ -242,6 +352,8 @@ def main() -> None:
             y_max=y_max,
             threshold=args.threshold,
             smooth_window=args.smooth_window,
+            crop_to_plot_area=not args.no_crop_to_plot_area,
+            peak_power=args.peak_power,
         )
 
         csv_path = csv_dir / f"{sample_id}.csv"
