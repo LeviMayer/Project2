@@ -27,8 +27,8 @@ class GenConfig:
     # data
     n_lines_min: int = 1
     n_lines_max: int = 1
-    n_points_min: int = 6
-    n_points_max: int = 18
+    n_points_min: int = 5
+    n_points_max: int = 12
 
     # value ranges
     x_min: float = 0.0
@@ -519,8 +519,8 @@ def generate(cfg: GenConfig):
 
 if __name__ == "__main__":
     cfg = GenConfig(
-        out_dir="out_lineex",
-        n_samples=15000,
+        out_dir="out_lineex_v2",
+        n_samples=20000,
         img_size=224,
         make_masked=True,
         seed=42
