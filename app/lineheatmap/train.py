@@ -260,6 +260,9 @@ def train_one_epoch(
     point_loss_weight: float = 0.7,
 ) -> Tuple[float, int]:
     model.train()
+    if hasattr(model, "encoder"):
+        model.encoder.eval()
+
     running = 0.0
     steps = 0
 
@@ -274,6 +277,11 @@ def train_one_epoch(
 
         with torch.cuda.amp.autocast(enabled=(device.type == "cuda")):
             logits = model(images)  # [B,2,H,W]
+            if step == 1 and epoch == 1:
+                print("DEBUG images:", images.shape)
+                print("DEBUG line_heatmap:", line_heatmap.shape)
+                print("DEBUG point_heatmap:", point_heatmap.shape)
+                print("DEBUG logits:", logits.shape)
 
             line_logits = logits[:, 0:1]
             point_logits = logits[:, 1:2]
