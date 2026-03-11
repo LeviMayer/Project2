@@ -12,27 +12,13 @@ import torchvision.transforms as T
 
 class LineHeatmapDataset(Dataset):
     """
-    Dataset for synthetic line-chart heatmap supervision.
+    Dataset for synthetic line-chart supervision.
 
-    Expected manifest format (jsonl, one object per line):
-      {
-        "id": "chart_000001",
-        "full": "images/chart_000001_full.png",
-        "masked": "images/chart_000001_masked.png",
-        "csv": "labels/chart_000001.csv",
-        "n_lines": 1,
-        "n_points": 42
-      }
-
-    Expected CSV format:
-      x,y,line_id
-      0.0,23.1,0
-      0.5,24.7,0
-      ...
-
-    For now this loader builds a SINGLE heatmap channel by drawing all points/segments
-    for all lines into one map. That is perfect for the first 1-line prototype and still
-    works later for multi-line experiments if you want a merged line heatmap.
+    Returns:
+        image:         [3, H, W]
+        line_heatmap:  [1, H, W]  -> full curve heatmap
+        point_heatmap: [1, H, W]  -> original support/data-point heatmap
+        id:            sample id
     """
 
     def __init__(
@@ -87,12 +73,22 @@ class LineHeatmapDataset(Dataset):
         image = self.image_tf(image)  # [3,H,W], range [0,1]
 
         line_points = self._read_points(csv_path)
-        heatmap = self._build_heatmap(line_points, self.heatmap_size, self.heatmap_size)
+
+        line_heatmap = self._build_line_heatmap(
+            line_points,
+            self.heatmap_size,
+            self.heatmap_size,
+        )
+        point_heatmap = self._build_point_heatmap(
+            line_points,
+            self.heatmap_size,
+            self.heatmap_size,
+        )
 
         return {
             "image": image,
-            "line_heatmap": torch.from_numpy(line_heatmap).unsqueeze(0),
-            "point_heatmap": torch.from_numpy(point_heatmap).unsqueeze(0),
+            "line_heatmap": torch.from_numpy(line_heatmap).unsqueeze(0),   # [1,H,W]
+            "point_heatmap": torch.from_numpy(point_heatmap).unsqueeze(0), # [1,H,W]
             "id": rec.get("id", f"sample_{idx:06d}"),
         }
 
@@ -122,7 +118,6 @@ class LineHeatmapDataset(Dataset):
                 line_id = int(row.get("line_id", 0))
                 by_line.setdefault(line_id, []).append((x, y))
 
-        # ensure each line is sorted by x
         for line_id in by_line:
             by_line[line_id] = sorted(by_line[line_id], key=lambda p: p[0])
         return by_line
@@ -157,7 +152,6 @@ class LineHeatmapDataset(Dataset):
     ) -> None:
         """
         Rasterize line by linear interpolation between consecutive points.
-        This avoids sparse labels when only CSV anchor points are drawn.
         """
         if len(pts) == 0:
             return
@@ -176,7 +170,7 @@ class LineHeatmapDataset(Dataset):
 
     def _gaussian_blur(self, img: np.ndarray, sigma: float) -> np.ndarray:
         if sigma <= 0:
-            return img
+            return img.astype(np.float32)
 
         radius = max(1, int(3 * sigma))
         size = 2 * radius + 1
@@ -184,29 +178,32 @@ class LineHeatmapDataset(Dataset):
         kernel_1d = np.exp(-(x ** 2) / (2 * sigma * sigma))
         kernel_1d = kernel_1d / kernel_1d.sum()
 
-        # separable conv, numpy-only
+        # horizontal
         padded = np.pad(img, ((0, 0), (radius, radius)), mode="edge")
         tmp = np.zeros_like(img, dtype=np.float32)
         for r in range(img.shape[0]):
             for c in range(img.shape[1]):
                 tmp[r, c] = np.sum(padded[r, c:c + size] * kernel_1d)
 
+        # vertical
         padded = np.pad(tmp, ((radius, radius), (0, 0)), mode="edge")
         out = np.zeros_like(tmp, dtype=np.float32)
         for r in range(img.shape[0]):
             for c in range(img.shape[1]):
                 out[r, c] = np.sum(padded[r:r + size, c] * kernel_1d)
 
-        # normalize into [0,1]
         out = out / max(out.max(), 1e-8)
         return out.astype(np.float32)
 
-    def _build_heatmap(
+    def _build_line_heatmap(
         self,
         line_points: Dict[int, List[Tuple[float, float]]],
         height: int,
         width: int,
     ) -> np.ndarray:
+        """
+        Heatmap for the whole line / curve.
+        """
         canvas = np.zeros((height, width), dtype=np.float32)
 
         for _line_id, pts in line_points.items():
@@ -214,4 +211,25 @@ class LineHeatmapDataset(Dataset):
             self._draw_line_segments(canvas, pix)
 
         heatmap = self._gaussian_blur(canvas, self.sigma)
+        return heatmap.astype(np.float32)
+
+    def _build_point_heatmap(
+        self,
+        line_points: Dict[int, List[Tuple[float, float]]],
+        height: int,
+        width: int,
+    ) -> np.ndarray:
+        """
+        Heatmap only for original support/data points from CSV.
+        """
+        canvas = np.zeros((height, width), dtype=np.float32)
+
+        for _line_id, pts in line_points.items():
+            pix = [self._to_pixel(x, y, width, height) for x, y in pts]
+            for px, py in pix:
+                canvas[py, px] = 1.0
+
+        # point heatmap should usually be sharper than line heatmap
+        point_sigma = max(1.0, self.sigma * 0.6)
+        heatmap = self._gaussian_blur(canvas, point_sigma)
         return heatmap.astype(np.float32)

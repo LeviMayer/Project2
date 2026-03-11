@@ -29,7 +29,7 @@ export QT_QPA_PLATFORM=offscreen
 export MPLBACKEND=Agg
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-export WANDB_MODE=offline
+export WANDB_MODE=online
 
 JEPA_DIR="/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa"
 CONFIG="$JEPA_DIR/configs/lineheatmap/lineheatmap_vitl16.yaml"
