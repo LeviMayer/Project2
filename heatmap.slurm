@@ -34,8 +34,6 @@ export WANDB_MODE=offline
 JEPA_DIR="/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa"
 CONFIG="$JEPA_DIR/configs/lineheatmap/lineheatmap_vitl16.yaml"
 
-export PYTHONPATH="$JEPA_DIR:$PYTHONPATH"
-
 cd "$SLURM_SUBMIT_DIR"
 
 echo "HOST: $(hostname)"
