@@ -91,7 +91,8 @@ class LineHeatmapDataset(Dataset):
 
         return {
             "image": image,
-            "heatmap": torch.from_numpy(heatmap).unsqueeze(0),  # [1,H,W]
+            "line_heatmap": torch.from_numpy(line_heatmap).unsqueeze(0),
+            "point_heatmap": torch.from_numpy(point_heatmap).unsqueeze(0),
             "id": rec.get("id", f"sample_{idx:06d}"),
         }
 

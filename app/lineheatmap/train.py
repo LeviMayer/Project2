@@ -71,17 +71,30 @@ def evaluate(
     loader: DataLoader,
     criterion: nn.Module,
     device: torch.device,
+    point_loss_weight: float = 0.7,
 ) -> float:
     model.eval()
     losses = []
-    for i , batch in enumerate(loader):
+
+    for i, batch in enumerate(loader):
         images = batch["image"].to(device, non_blocking=True)
-        heatmaps = batch["heatmap"].to(device, non_blocking=True)
-        logits = model(images)
-        loss = criterion(logits, heatmaps)
+        line_heatmap = batch["line_heatmap"].to(device, non_blocking=True)
+        point_heatmap = batch["point_heatmap"].to(device, non_blocking=True)
+
+        logits = model(images)  # [B,2,H,W]
+
+        line_logits = logits[:, 0:1]
+        point_logits = logits[:, 1:2]
+
+        loss_line = criterion(line_logits, line_heatmap)
+        loss_point = criterion(point_logits, point_heatmap)
+        loss = loss_line + point_loss_weight * loss_point
+
         losses.append(loss.item())
+
         if i % 100 == 0:
             print(f"[VAL] step {i}/{len(loader)}")
+
     return float(sum(losses) / max(len(losses), 1))
 
 
@@ -89,14 +102,9 @@ def maybe_load_encoder_checkpoint(encoder: nn.Module, ckpt_path: str) -> None:
     """
     Load JEPA encoder weights from checkpoint.
 
-    Important:
     init_video_model() returns a wrapper (e.g. MultiMaskWrapper),
-    while the checkpoint usually stores weights for the inner ViT backbone
-    with keys like:
-        pos_embed
-        patch_embed.proj.weight
-        blocks.0....
-    So we should load into encoder.backbone if it exists.
+    while the checkpoint usually stores weights for the inner ViT backbone.
+    So we load into encoder.backbone if it exists.
     """
     if ckpt_path is None or not os.path.exists(ckpt_path):
         print(f"[WARN] No encoder checkpoint loaded. ckpt_path={ckpt_path}")
@@ -105,7 +113,6 @@ def maybe_load_encoder_checkpoint(encoder: nn.Module, ckpt_path: str) -> None:
     print(f"[INFO] Loading encoder checkpoint: {ckpt_path}")
     ckpt = torch.load(ckpt_path, map_location="cpu")
 
-    # pick state dict
     if "encoder" in ckpt and isinstance(ckpt["encoder"], dict):
         state_dict = ckpt["encoder"]
     elif "target_encoder" in ckpt and isinstance(ckpt["target_encoder"], dict):
@@ -117,7 +124,6 @@ def maybe_load_encoder_checkpoint(encoder: nn.Module, ckpt_path: str) -> None:
     else:
         state_dict = ckpt
 
-    # remove only generic prefixes, keep layer names like pos_embed, blocks...
     cleaned = {}
     for k, v in state_dict.items():
         nk = k
@@ -131,7 +137,6 @@ def maybe_load_encoder_checkpoint(encoder: nn.Module, ckpt_path: str) -> None:
             nk = nk[len("backbone."):]
         cleaned[nk] = v
 
-    # IMPORTANT: load into inner backbone if wrapper exists
     target = encoder.backbone if hasattr(encoder, "backbone") else encoder
 
     missing, unexpected = target.load_state_dict(cleaned, strict=False)
@@ -187,7 +192,7 @@ def build_model(cfg: Dict[str, Any], device: torch.device) -> nn.Module:
         embed_dim=embed_dim,
         image_size=data_cfg["crop_size"],
         patch_size=data_cfg["patch_size"],
-        out_channels=1,
+        out_channels=2,  # line_heatmap + point_heatmap
     )
     return model.to(device)
 
@@ -201,7 +206,7 @@ def build_dataloaders(cfg: Dict[str, Any]) -> Tuple[DataLoader, DataLoader]:
         image_key=data_cfg.get("image_key", "full"),
         image_size=data_cfg["crop_size"],
         heatmap_size=data_cfg.get("heatmap_size", data_cfg["crop_size"]),
-        sigma=data_cfg.get("sigma", 2.5),
+        sigma=data_cfg.get("sigma", 1.5),
         x_min=data_cfg.get("x_min", 0.0),
         x_max=data_cfg.get("x_max", 10.0),
         y_min=data_cfg.get("y_min", 0.0),
@@ -214,7 +219,7 @@ def build_dataloaders(cfg: Dict[str, Any]) -> Tuple[DataLoader, DataLoader]:
         image_key=data_cfg.get("image_key", "full"),
         image_size=data_cfg["crop_size"],
         heatmap_size=data_cfg.get("heatmap_size", data_cfg["crop_size"]),
-        sigma=data_cfg.get("sigma", 2.5),
+        sigma=data_cfg.get("sigma", 1.5),
         x_min=data_cfg.get("x_min", 0.0),
         x_max=data_cfg.get("x_max", 10.0),
         y_min=data_cfg.get("y_min", 0.0),
@@ -252,6 +257,7 @@ def train_one_epoch(
     epoch: int,
     log_every: int,
     global_step_start: int,
+    point_loss_weight: float = 0.7,
 ) -> Tuple[float, int]:
     model.train()
     running = 0.0
@@ -261,13 +267,21 @@ def train_one_epoch(
         global_step = global_step_start + step
 
         images = batch["image"].to(device, non_blocking=True)
-        heatmaps = batch["heatmap"].to(device, non_blocking=True)
+        line_heatmap = batch["line_heatmap"].to(device, non_blocking=True)
+        point_heatmap = batch["point_heatmap"].to(device, non_blocking=True)
 
         optimizer.zero_grad(set_to_none=True)
 
         with torch.cuda.amp.autocast(enabled=(device.type == "cuda")):
-            logits = model(images)
-            loss = criterion(logits, heatmaps)
+            logits = model(images)  # [B,2,H,W]
+
+            line_logits = logits[:, 0:1]
+            point_logits = logits[:, 1:2]
+
+            loss_line = criterion(line_logits, line_heatmap)
+            loss_point = criterion(point_logits, point_heatmap)
+
+            loss = loss_line + point_loss_weight * loss_point
 
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -280,7 +294,8 @@ def train_one_epoch(
             avg_loss = running / steps
             print(
                 f"[epoch {epoch:03d} | step {step:05d}/{len(loader):05d}] "
-                f"loss={avg_loss:.5f}"
+                f"loss={avg_loss:.5f} "
+                f"(line={loss_line.item():.5f}, point={loss_point.item():.5f})"
             )
 
             if wandb.run is not None:
@@ -288,6 +303,8 @@ def train_one_epoch(
                     "global_step": global_step,
                     "epoch": epoch,
                     "train/loss_step": avg_loss,
+                    "train/loss_line_step": loss_line.item(),
+                    "train/loss_point_step": loss_point.item(),
                     "train/lr": optimizer.param_groups[0]["lr"],
                 })
 
@@ -309,7 +326,6 @@ def main() -> None:
     train_loader, val_loader = build_dataloaders(cfg)
     model = build_model(cfg, device)
 
-    # Build optimizer only over trainable params
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(
         params,
@@ -328,6 +344,7 @@ def main() -> None:
     epochs = cfg["train"].get("epochs", 20)
     log_every = cfg["train"].get("log_every", 25)
     eval_every = cfg["train"].get("eval_every", 1)
+    point_loss_weight = cfg["train"].get("point_loss_weight", 0.7)
 
     with open(out_dir / "train_config_dump.json", "w") as f:
         json.dump(cfg, f, indent=2)
@@ -338,7 +355,6 @@ def main() -> None:
         config=cfg,
     )
 
-    # define metrics so W&B uses sensible x-axes
     wandb.define_metric("global_step")
     wandb.define_metric("epoch")
     wandb.define_metric("train/*", step_metric="global_step")
@@ -355,6 +371,7 @@ def main() -> None:
             epoch=epoch,
             log_every=log_every,
             global_step_start=global_step,
+            point_loss_weight=point_loss_weight,
         )
         global_step += n_steps
 
@@ -367,7 +384,13 @@ def main() -> None:
             })
 
         if epoch % eval_every == 0:
-            val_loss = evaluate(model, val_loader, criterion, device)
+            val_loss = evaluate(
+                model=model,
+                loader=val_loader,
+                criterion=criterion,
+                device=device,
+                point_loss_weight=point_loss_weight,
+            )
             print(f"[INFO] epoch={epoch} val_loss={val_loss:.6f}")
 
             if wandb.run is not None:

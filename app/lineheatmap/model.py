@@ -6,7 +6,7 @@ import torch.nn.functional as F
 class SimpleDecoder(nn.Module):
     """
     Simple upsampling decoder that converts ViT patch features
-    into a full-resolution heatmap.
+    into full-resolution heatmaps.
 
     Input:  [B, D, H_patch, W_patch]
     Output: [B, C, H, W]
@@ -30,7 +30,6 @@ class SimpleDecoder(nn.Module):
         self.head = nn.Conv2d(64, out_channels, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
@@ -62,7 +61,11 @@ class LineHeatmapModel(nn.Module):
           ↓
         Decoder
           ↓
-        Line Heatmap
+        Heatmaps
+
+    For the 2-head setup:
+        channel 0 -> line_heatmap
+        channel 1 -> point_heatmap
     """
 
     def __init__(
@@ -79,6 +82,7 @@ class LineHeatmapModel(nn.Module):
         self.embed_dim = embed_dim
         self.image_size = image_size
         self.patch_size = patch_size
+        self.out_channels = out_channels
 
         self.h_patch = image_size // patch_size
         self.w_patch = image_size // patch_size
@@ -92,10 +96,16 @@ class LineHeatmapModel(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        x: [B,3,H,W]
-        return: [B,1,H,W]
-        """
+        Args:
+            x: [B, 3, H, W]
 
+        Returns:
+            out: [B, out_channels, H, W]
+
+        Example:
+            out_channels=1 -> [B,1,H,W]
+            out_channels=2 -> [B,2,H,W]
+        """
         B = x.shape[0]
 
         feats = self.encoder(x)
@@ -104,9 +114,12 @@ class LineHeatmapModel(nn.Module):
             feats = feats[0]
 
         if feats.dim() == 3:
+            # [B, N, D] -> [B, D, H_patch, W_patch]
             feats = feats.transpose(1, 2)
             feats = feats.reshape(B, self.embed_dim, self.h_patch, self.w_patch)
 
-        heatmap = self.decoder(feats)
+        elif feats.dim() != 4:
+            raise ValueError(f"Unexpected encoder output shape: {feats.shape}")
 
-        return heatmap
+        out = self.decoder(feats)
+        return out
