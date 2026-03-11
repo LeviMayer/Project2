@@ -6,6 +6,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import torch
 from PIL import Image
+from scipy.ndimage import gaussian_filter
 from torch.utils.data import Dataset
 import torchvision.transforms as T
 
@@ -172,26 +173,7 @@ class LineHeatmapDataset(Dataset):
         if sigma <= 0:
             return img.astype(np.float32)
 
-        radius = max(1, int(3 * sigma))
-        size = 2 * radius + 1
-        x = np.arange(size) - radius
-        kernel_1d = np.exp(-(x ** 2) / (2 * sigma * sigma))
-        kernel_1d = kernel_1d / kernel_1d.sum()
-
-        # horizontal
-        padded = np.pad(img, ((0, 0), (radius, radius)), mode="edge")
-        tmp = np.zeros_like(img, dtype=np.float32)
-        for r in range(img.shape[0]):
-            for c in range(img.shape[1]):
-                tmp[r, c] = np.sum(padded[r, c:c + size] * kernel_1d)
-
-        # vertical
-        padded = np.pad(tmp, ((radius, radius), (0, 0)), mode="edge")
-        out = np.zeros_like(tmp, dtype=np.float32)
-        for r in range(img.shape[0]):
-            for c in range(img.shape[1]):
-                out[r, c] = np.sum(padded[r:r + size, c] * kernel_1d)
-
+        out = gaussian_filter(img.astype(np.float32), sigma=sigma)
         out = out / max(out.max(), 1e-8)
         return out.astype(np.float32)
 
@@ -229,7 +211,6 @@ class LineHeatmapDataset(Dataset):
             for px, py in pix:
                 canvas[py, px] = 1.0
 
-        # point heatmap should usually be sharper than line heatmap
         point_sigma = max(1.0, self.sigma * 0.6)
         heatmap = self._gaussian_blur(canvas, point_sigma)
         return heatmap.astype(np.float32)
