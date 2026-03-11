@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=lineheatmap_lineex
-#SBATCH --partition=gpu_a100_il
+#SBATCH --partition=gpu_a100_short
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64gb
-#SBATCH --time=08:00:00
+#SBATCH --time=00:30:00
 #SBATCH --output=logs/lineheatmap_%j.out
 #SBATCH --error=logs/lineheatmap_%j.err
 #SBATCH --export=NONE
@@ -28,7 +28,14 @@ CONDA_EXE="/opt/bwhpc/common/devel/miniforge/25.3.1-py3.12/bin/conda"
 export QT_QPA_PLATFORM=offscreen
 export MPLBACKEND=Agg
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-export WANDB_MODE=online
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export WANDB_MODE=offline
+
+JEPA_DIR="/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa"
+CONFIG="$JEPA_DIR/configs/lineheatmap/lineheatmap_vitl16.yaml"
+
+export PYTHONPATH="$JEPA_DIR:$PYTHONPATH"
+
 cd "$SLURM_SUBMIT_DIR"
 
 echo "HOST: $(hostname)"
@@ -39,12 +46,14 @@ echo "CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-}"
 
 nvidia-smi || true
 
-JEPA_DIR="/pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa"
-CONFIG="$JEPA_DIR/configs/lineheatmap/lineheatmap_vitl16.yaml"
-
 test -f "$CONFIG" || { echo "ERROR: config not found: $CONFIG"; exit 1; }
 
 cd "$JEPA_DIR"
+
+echo "=== CONFIG CHECK ==="
+grep -n "encoder_checkpoint" "$CONFIG" || true
+grep -n "train_manifest" "$CONFIG" || true
+grep -n "val_manifest" "$CONFIG" || true
 
 "$CONDA_EXE" run -n jepa --no-capture-output python -c \
 "import torch; print(torch.__version__); print(torch.cuda.is_available()); print(torch.cuda.device_count())"
