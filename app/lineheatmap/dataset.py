@@ -114,8 +114,11 @@ class LineHeatmapDataset(Dataset):
         with csv_path.open("r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                x = float(row["x"])
-                y = float(row["y"])
+                try:
+                    x = float(row["x"])
+                    y = float(row["y"])
+                except (TypeError, ValueError):
+                    continue
                 line_id = int(row.get("line_id", 0))
                 by_line.setdefault(line_id, []).append((x, y))
 
