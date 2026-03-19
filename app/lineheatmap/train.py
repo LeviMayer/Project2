@@ -257,7 +257,7 @@ def train_one_epoch(
     epoch: int,
     log_every: int,
     global_step_start: int,
-    point_loss_weight: float = 0.7,
+    point_loss_weight: float = 3.0,
 ) -> Tuple[float, int]:
     model.train()
     if hasattr(model, "encoder"):
