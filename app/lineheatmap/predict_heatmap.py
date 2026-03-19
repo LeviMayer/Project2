@@ -1,11 +1,8 @@
 import argparse
-import os
 from pathlib import Path
 
 import torch
 import yaml
-import numpy as np
-from PIL import Image
 import matplotlib.pyplot as plt
 
 from app.lineheatmap.dataset import LineHeatmapDataset
@@ -56,44 +53,73 @@ def build_model(cfg, device, checkpoint):
         embed_dim=embed_dim,
         image_size=data_cfg["crop_size"],
         patch_size=data_cfg["patch_size"],
-        out_channels=1,
+        out_channels=2,
     )
 
     ckpt = torch.load(checkpoint, map_location="cpu")
-    model.load_state_dict(ckpt["model"])
+    model.load_state_dict(ckpt["model"], strict=True)
 
     model = model.to(device)
     model.eval()
-
     return model
 
 
-def save_visualization(image, gt_heatmap, pred_heatmap, out_path):
-    image = image.cpu().permute(1, 2, 0).numpy()
-    gt = gt_heatmap.cpu().squeeze().numpy()
-    pred = pred_heatmap.cpu().squeeze().numpy()
+def save_visualization(
+    image,
+    gt_line_heatmap,
+    pred_line_heatmap,
+    gt_point_heatmap,
+    pred_point_heatmap,
+    out_path,
+):
+    image_np = image.cpu().permute(1, 2, 0).numpy()
 
-    fig, ax = plt.subplots(1, 4, figsize=(12, 3))
+    gt_line_np = gt_line_heatmap.cpu().squeeze().numpy()
+    pred_line_np = pred_line_heatmap.cpu().squeeze().numpy()
 
-    ax[0].imshow(image)
-    ax[0].set_title("image")
-    ax[0].axis("off")
+    gt_point_np = gt_point_heatmap.cpu().squeeze().numpy()
+    pred_point_np = pred_point_heatmap.cpu().squeeze().numpy()
 
-    ax[1].imshow(gt, cmap="hot")
-    ax[1].set_title("gt_heatmap")
-    ax[1].axis("off")
+    fig, ax = plt.subplots(2, 4, figsize=(14, 7))
 
-    ax[2].imshow(pred, cmap="hot")
-    ax[2].set_title("pred_heatmap")
-    ax[2].axis("off")
+    # Row 1: line heatmap
+    ax[0, 0].imshow(image_np)
+    ax[0, 0].set_title("image")
+    ax[0, 0].axis("off")
 
-    ax[3].imshow(image)
-    ax[3].imshow(pred, cmap="hot", alpha=0.5)
-    ax[3].set_title("overlay")
-    ax[3].axis("off")
+    ax[0, 1].imshow(gt_line_np, cmap="hot")
+    ax[0, 1].set_title("gt_line_heatmap")
+    ax[0, 1].axis("off")
+
+    ax[0, 2].imshow(pred_line_np, cmap="hot")
+    ax[0, 2].set_title("pred_line_heatmap")
+    ax[0, 2].axis("off")
+
+    ax[0, 3].imshow(image_np)
+    ax[0, 3].imshow(pred_line_np, cmap="hot", alpha=0.5)
+    ax[0, 3].set_title("line overlay")
+    ax[0, 3].axis("off")
+
+    # Row 2: point heatmap
+    ax[1, 0].imshow(image_np)
+    ax[1, 0].set_title("image")
+    ax[1, 0].axis("off")
+
+    ax[1, 1].imshow(gt_point_np, cmap="hot")
+    ax[1, 1].set_title("gt_point_heatmap")
+    ax[1, 1].axis("off")
+
+    ax[1, 2].imshow(pred_point_np, cmap="hot")
+    ax[1, 2].set_title("pred_point_heatmap")
+    ax[1, 2].axis("off")
+
+    ax[1, 3].imshow(image_np)
+    ax[1, 3].imshow(pred_point_np, cmap="hot", alpha=0.5)
+    ax[1, 3].set_title("point overlay")
+    ax[1, 3].axis("off")
 
     plt.tight_layout()
-    plt.savefig(out_path)
+    plt.savefig(out_path, dpi=150)
     plt.close()
 
 
@@ -102,12 +128,11 @@ def main():
     parser.add_argument("--config", default="configs/lineheatmap/lineheatmap_vitl16.yaml")
     parser.add_argument("--checkpoint", default="outputs/lineheatmap_vitl16/best.pth")
     parser.add_argument("--num_samples", default=20, type=int)
+    parser.add_argument("--start_index", default=0, type=int)
     parser.add_argument("--out_dir", default="outputs/predictions")
-
     args = parser.parse_args()
 
     cfg = load_yaml(args.config)
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     out_dir = Path(args.out_dir)
@@ -130,23 +155,31 @@ def main():
 
     print("dataset size:", len(dataset))
 
-    with torch.no_grad():
-        for i in range(min(args.num_samples, len(dataset))):
+    end_idx = min(args.start_index + args.num_samples, len(dataset))
 
+    with torch.no_grad():
+        for i in range(args.start_index, end_idx):
             sample = dataset[i]
 
             image = sample["image"].unsqueeze(0).to(device)
-            gt_heatmap = sample["heatmap"]
+            gt_line_heatmap = sample["line_heatmap"]
+            gt_point_heatmap = sample["point_heatmap"]
+            sample_id = sample.get("id", f"sample_{i:04d}")
 
-            logits = model(image)
-            pred_heatmap = torch.sigmoid(logits).cpu()
+            logits = model(image)                  # [1,2,H,W]
+            pred = torch.sigmoid(logits).cpu()    # [1,2,H,W]
 
-            save_path = out_dir / f"sample_{i:04d}.png"
+            pred_line_heatmap = pred[:, 0:1]
+            pred_point_heatmap = pred[:, 1:2]
+
+            save_path = out_dir / f"{sample_id}.png"
 
             save_visualization(
                 sample["image"],
-                gt_heatmap,
-                pred_heatmap,
+                gt_line_heatmap,
+                pred_line_heatmap,
+                gt_point_heatmap,
+                pred_point_heatmap,
                 save_path,
             )
 
