@@ -376,7 +376,8 @@ def main() -> None:
             model=model,
             loader=train_loader,
             optimizer=optimizer,
-            criterion=criterion,
+            line_criterion=line_criterion,
+            point_criterion=point_criterion,
             device=device,
             scaler=scaler,
             epoch=epoch,
@@ -398,7 +399,8 @@ def main() -> None:
             val_loss = evaluate(
                 model=model,
                 loader=val_loader,
-                criterion=criterion,
+                line_criterion=line_criterion,
+                point_criterion=point_criterion,
                 device=device,
                 point_loss_weight=point_loss_weight,
             )
