@@ -1,0 +1,10 @@
+{"id": "chart_000000", "full": "images\\chart_000000_full.png", "masked": "images\\chart_000000_masked.png", "csv": "labels\\chart_000000.csv", "n_lines": 1, "n_points": 5, "x_mode": "months"}
+{"id": "chart_000001", "full": "images\\chart_000001_full.png", "masked": "images\\chart_000001_masked.png", "csv": "labels\\chart_000001.csv", "n_lines": 1, "n_points": 10, "x_mode": "numeric"}
+{"id": "chart_000002", "full": "images\\chart_000002_full.png", "masked": "images\\chart_000002_masked.png", "csv": "labels\\chart_000002.csv", "n_lines": 1, "n_points": 9, "x_mode": "categories"}
+{"id": "chart_000003", "full": "images\\chart_000003_full.png", "masked": "images\\chart_000003_masked.png", "csv": "labels\\chart_000003.csv", "n_lines": 1, "n_points": 5, "x_mode": "categories"}
+{"id": "chart_000004", "full": "images\\chart_000004_full.png", "masked": "images\\chart_000004_masked.png", "csv": "labels\\chart_000004.csv", "n_lines": 1, "n_points": 5, "x_mode": "numeric"}
+{"id": "chart_000005", "full": "images\\chart_000005_full.png", "masked": "images\\chart_000005_masked.png", "csv": "labels\\chart_000005.csv", "n_lines": 1, "n_points": 6, "x_mode": "categories"}
+{"id": "chart_000006", "full": "images\\chart_000006_full.png", "masked": "images\\chart_000006_masked.png", "csv": "labels\\chart_000006.csv", "n_lines": 1, "n_points": 10, "x_mode": "numeric"}
+{"id": "chart_000007", "full": "images\\chart_000007_full.png", "masked": "images\\chart_000007_masked.png", "csv": "labels\\chart_000007.csv", "n_lines": 1, "n_points": 5, "x_mode": "numeric"}
+{"id": "chart_000008", "full": "images\\chart_000008_full.png", "masked": "images\\chart_000008_masked.png", "csv": "labels\\chart_000008.csv", "n_lines": 1, "n_points": 8, "x_mode": "categories"}
+{"id": "chart_000009", "full": "images\\chart_000009_full.png", "masked": "images\\chart_000009_masked.png", "csv": "labels\\chart_000009.csv", "n_lines": 1, "n_points": 8, "x_mode": "categories"}

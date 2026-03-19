@@ -5,6 +5,13 @@
 
 # datasets
 data_lineex_imfolder/
+chartinfo_lineex/images/
+chartinfo_lineex/labels/
+chartinfo_lineex_new/images/
+chartinfo_lineex_new/labels/
+.json
+.jpg
+.png
 
 # outputs / checkpoints / artifacts
 # outputs/
