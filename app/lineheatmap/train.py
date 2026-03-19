@@ -69,9 +69,10 @@ def save_checkpoint(
 def evaluate(
     model: nn.Module,
     loader: DataLoader,
-    criterion: nn.Module,
+    line_criterion: nn.Module,
+    point_criterion: nn.Module,
     device: torch.device,
-    point_loss_weight: float = 0.7,
+    point_loss_weight: float = 5.0,
 ) -> float:
     model.eval()
     losses = []
@@ -86,8 +87,8 @@ def evaluate(
         line_logits = logits[:, 0:1]
         point_logits = logits[:, 1:2]
 
-        loss_line = criterion(line_logits, line_heatmap)
-        loss_point = criterion(point_logits, point_heatmap)
+        loss_line = line_criterion(line_logits, line_heatmap)
+        loss_point = point_criterion(point_logits, point_heatmap)
         loss = loss_line + point_loss_weight * loss_point
 
         losses.append(loss.item())
@@ -251,13 +252,14 @@ def train_one_epoch(
     model: nn.Module,
     loader: DataLoader,
     optimizer: torch.optim.Optimizer,
-    criterion: nn.Module,
+    line_criterion: nn.Module,
+    point_criterion: nn.Module,
     device: torch.device,
     scaler: torch.cuda.amp.GradScaler,
     epoch: int,
     log_every: int,
     global_step_start: int,
-    point_loss_weight: float = 3.0,
+    point_loss_weight: float = 5.0,
 ) -> Tuple[float, int]:
     model.train()
     if hasattr(model, "encoder"):
@@ -286,8 +288,8 @@ def train_one_epoch(
             line_logits = logits[:, 0:1]
             point_logits = logits[:, 1:2]
 
-            loss_line = criterion(line_logits, line_heatmap)
-            loss_point = criterion(point_logits, point_heatmap)
+            loss_line = line_criterion(line_logits, line_heatmap)
+            loss_point = point_criterion(point_logits, point_heatmap)
 
             loss = loss_line + point_loss_weight * loss_point
 
@@ -341,10 +343,11 @@ def main() -> None:
         weight_decay=cfg["train"].get("weight_decay", 1e-4),
     )
 
-    criterion = DiceBCELoss(
+    line_criterion = DiceBCELoss(
         bce_weight=cfg["train"].get("bce_weight", 1.0),
         dice_weight=cfg["train"].get("dice_weight", 1.0),
     )
+    point_criterion = nn.BCEWithLogitsLoss()
     scaler = torch.cuda.amp.GradScaler(enabled=(device.type == "cuda"))
 
     best_val = float("inf")
@@ -352,7 +355,7 @@ def main() -> None:
     epochs = cfg["train"].get("epochs", 20)
     log_every = cfg["train"].get("log_every", 25)
     eval_every = cfg["train"].get("eval_every", 1)
-    point_loss_weight = cfg["train"].get("point_loss_weight", 0.7)
+    point_loss_weight = cfg["train"].get("point_loss_weight", 5.0)
 
     with open(out_dir / "train_config_dump.json", "w") as f:
         json.dump(cfg, f, indent=2)
