@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+import numpy as np
 import torch
 import yaml
 import matplotlib.pyplot as plt
@@ -166,14 +167,14 @@ def main():
             gt_point_heatmap = sample["point_heatmap"]
             sample_id = sample.get("id", f"sample_{i:04d}")
 
-            logits = model(image)                  # [1,2,H,W]
-            pred = torch.sigmoid(logits).cpu()    # [1,2,H,W]
+            logits = model(image)               # [1,2,H,W]
+            pred = torch.sigmoid(logits).cpu() # [1,2,H,W]
 
             pred_line_heatmap = pred[:, 0:1]
             pred_point_heatmap = pred[:, 1:2]
 
+            # PNG visualization
             save_path = out_dir / f"{sample_id}.png"
-
             save_visualization(
                 sample["image"],
                 gt_line_heatmap,
@@ -183,7 +184,16 @@ def main():
                 save_path,
             )
 
+            # Save raw predictions for evaluation
+            line_np = pred_line_heatmap.squeeze(0).squeeze(0).numpy().astype(np.float32)
+            point_np = pred_point_heatmap.squeeze(0).squeeze(0).numpy().astype(np.float32)
+
+            np.save(out_dir / f"{sample_id}_line.npy", line_np)
+            np.save(out_dir / f"{sample_id}_point.npy", point_np)
+
             print("saved:", save_path)
+            print("saved:", out_dir / f"{sample_id}_line.npy")
+            print("saved:", out_dir / f"{sample_id}_point.npy")
 
 
 if __name__ == "__main__":
