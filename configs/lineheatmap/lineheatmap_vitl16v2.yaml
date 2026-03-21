@@ -1,0 +1,62 @@
+app: lineheatmap
+
+nodes: 1
+tasks_per_node: 1
+
+data:
+  root_dir: /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/out_lineex_v2
+  train_manifest: train_manifest.jsonl
+  val_manifest: val_manifest.jsonl
+
+  image_key: full
+  crop_size: 224
+  heatmap_size: 224
+  patch_size: 16
+
+  batch_size: 16
+  num_workers: 16
+  pin_mem: true
+
+  num_frames: 1
+  tubelet_size: 1
+  sampling_rate: 1
+
+  x_min: 0.0
+  x_max: 10.0
+  y_min: 0.0
+  y_max: 100.0
+
+  sigma: 2.5
+  point_sigma: 0.6
+  max_points: 16
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  uniform_power: true
+  use_mask_tokens: true
+  zero_init_mask_tokens: true
+  point_slots: 16
+
+meta:
+  use_sdpa: true
+
+logging:
+  folder: /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/outputs/lineheatmap_vitl16_slots
+
+train:
+  encoder_checkpoint: /pfs/data6/home/ul/ul_student/ul_upf92/Project/jepa/outputs/jepa_lineex/lineex_vjepa-latest.pth.tar
+  freeze_encoder: true
+  embed_dim: 1024
+
+  lr: 1.0e-4
+  weight_decay: 1.0e-4
+
+  epochs: 20
+  log_every: 25
+  eval_every: 1
+
+  bce_weight: 1.0
+  dice_weight: 1.0
+  point_loss_weight: 5.0

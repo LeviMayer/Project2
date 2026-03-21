@@ -416,6 +416,6 @@ class LineHeatmapDataset(Dataset):
             for px, py in pix:
                 canvas[max(py-1, 0):py+2, max(px-1, 0):px+2] = 1.0
 
-        point_sigma = 0.7 #max(1.0, self.sigma * 0.6)
+        point_sigma = 0.4 #max(1.0, self.sigma * 0.6)
         heatmap = self._gaussian_blur(canvas, point_sigma)
         return heatmap.astype(np.float32)
