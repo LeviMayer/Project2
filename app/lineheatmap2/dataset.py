@@ -45,6 +45,8 @@ class LineHeatmapDataset(Dataset):
             self.manifest_path = self.root_dir / self.manifest_path
 
         self.records = self._load_manifest(self.manifest_path)
+        self.records = self._filter_valid_records(self.records)
+        print(f"[INFO] valid samples: {len(self.records)}")
         self.image_key = image_key
         self.image_size = int(image_size)
         self.heatmap_size = int(heatmap_size)
@@ -80,7 +82,7 @@ class LineHeatmapDataset(Dataset):
         image = self.image_tf(image)  # [3,H,W], range [0,1]
 
         line_points = self._read_points(csv_path)
-        if not line_points:
+        if not line_points or sum(len(v) for v in line_points.values()) == 0:
             raise ValueError(f"No valid numeric points found in {csv_path}")
 
         line_heatmap = self._build_line_heatmap(
@@ -203,6 +205,34 @@ class LineHeatmapDataset(Dataset):
             xs = np.clip(np.round(xs).astype(np.int32), 0, canvas.shape[1] - 1)
             ys = np.clip(np.round(ys).astype(np.int32), 0, canvas.shape[0] - 1)
             canvas[ys, xs] = 1.0
+
+    def _has_valid_points(self, csv_path: Path) -> bool:
+        try:
+            by_line = self._read_points(csv_path)
+            total_points = sum(len(v) for v in by_line.values())
+            return total_points > 0
+        except Exception:
+            return False
+
+
+    def _filter_valid_records(self, records: List[dict]) -> List[dict]:
+        valid_records = []
+        dropped = 0
+
+        for rec in records:
+            csv_rel = rec.get("csv")
+            if csv_rel is None:
+                dropped += 1
+                continue
+
+            csv_path = self.root_dir / csv_rel
+            if self._has_valid_points(csv_path):
+                valid_records.append(rec)
+            else:
+                dropped += 1
+
+        print(f"[INFO] filtered invalid samples: {dropped}")
+        return valid_records
 
     def _gaussian_blur(self, img: np.ndarray, sigma: float) -> np.ndarray:
         if sigma <= 0:
