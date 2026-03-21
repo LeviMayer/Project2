@@ -6,8 +6,8 @@ import torch
 import yaml
 import matplotlib.pyplot as plt
 
-from app.lineheatmap.dataset import LineHeatmapDataset
-from app.lineheatmap.model import LineHeatmapModel
+from app.lineheatmap2.dataset import LineHeatmapDataset
+from app.lineheatmap2.model import LineHeatmapModel
 from app.vjepa.utils import init_video_model
 
 
