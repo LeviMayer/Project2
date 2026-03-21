@@ -44,17 +44,25 @@ class DiceBCELoss(nn.Module):
         return self.bce_weight * bce + self.dice_weight * dice
 
 
-class MaskedPointSlotMSELoss(nn.Module):
+class MaskedPointSlotBCEMSELoss(nn.Module):
     """
-    MSE on slot-based point heatmaps with a per-slot valid mask.
+    BCE + MSE on slot-based point heatmaps with a per-slot valid mask.
 
-    logits: [B, K, H, W]
-    targets: [B, K, H, W]
+    logits:     [B, K, H, W]
+    targets:    [B, K, H, W]
     valid_mask: [B, K]
     """
 
-    def __init__(self, eps: float = 1e-8):
+    def __init__(
+        self,
+        bce_weight: float = 1.0,
+        mse_weight: float = 1.0,
+        eps: float = 1e-8,
+    ):
         super().__init__()
+        self.bce = nn.BCEWithLogitsLoss(reduction="none")
+        self.bce_weight = float(bce_weight)
+        self.mse_weight = float(mse_weight)
         self.eps = eps
 
     def forward(
@@ -63,21 +71,20 @@ class MaskedPointSlotMSELoss(nn.Module):
         targets: torch.Tensor,
         valid_mask: torch.Tensor,
     ) -> torch.Tensor:
+        valid_mask = valid_mask.float()  # [B,K]
+
+        # BCE per pixel -> mean over H,W => [B,K]
+        bce = self.bce(logits, targets).mean(dim=(2, 3))
+
+        # MSE on probabilities -> mean over H,W => [B,K]
         probs = torch.sigmoid(logits)
+        mse = ((probs - targets) ** 2).mean(dim=(2, 3))
 
-        # squared error per pixel
-        sq = (probs - targets) ** 2  # [B,K,H,W]
-
-        # mean over spatial dimensions -> [B,K]
-        sq = sq.mean(dim=(2, 3))
-
-        # apply valid slot mask
-        valid_mask = valid_mask.float()
-        sq = sq * valid_mask
+        loss = self.bce_weight * bce + self.mse_weight * mse
+        loss = loss * valid_mask
 
         denom = valid_mask.sum().clamp_min(self.eps)
-        loss = sq.sum() / denom
-        return loss
+        return loss.sum() / denom
 
 
 def save_checkpoint(
@@ -115,9 +122,9 @@ def evaluate(
 
     for i, batch in enumerate(loader):
         images = batch["image"].to(device, non_blocking=True)
-        line_heatmap = batch["line_heatmap"].to(device, non_blocking=True)              # [B,1,H,W]
-        point_heatmaps = batch["point_heatmaps"].to(device, non_blocking=True)          # [B,K,H,W]
-        point_valid_mask = batch["point_valid_mask"].to(device, non_blocking=True)      # [B,K]
+        line_heatmap = batch["line_heatmap"].to(device, non_blocking=True)         # [B,1,H,W]
+        point_heatmaps = batch["point_heatmaps"].to(device, non_blocking=True)     # [B,K,H,W]
+        point_valid_mask = batch["point_valid_mask"].to(device, non_blocking=True) # [B,K]
 
         out = model(images)
         line_logits = out["line_logits"]      # [B,1,H,W]
@@ -289,7 +296,7 @@ def train_one_epoch(
     line_criterion: nn.Module,
     point_criterion: nn.Module,
     device: torch.device,
-    scaler: torch.cuda.amp.GradScaler,
+    scaler: torch.amp.GradScaler,
     epoch: int,
     log_every: int,
     global_step_start: int,
@@ -306,13 +313,13 @@ def train_one_epoch(
         global_step = global_step_start + step
 
         images = batch["image"].to(device, non_blocking=True)
-        line_heatmap = batch["line_heatmap"].to(device, non_blocking=True)              # [B,1,H,W]
-        point_heatmaps = batch["point_heatmaps"].to(device, non_blocking=True)          # [B,K,H,W]
-        point_valid_mask = batch["point_valid_mask"].to(device, non_blocking=True)      # [B,K]
+        line_heatmap = batch["line_heatmap"].to(device, non_blocking=True)         # [B,1,H,W]
+        point_heatmaps = batch["point_heatmaps"].to(device, non_blocking=True)     # [B,K,H,W]
+        point_valid_mask = batch["point_valid_mask"].to(device, non_blocking=True) # [B,K]
 
         optimizer.zero_grad(set_to_none=True)
 
-        with torch.cuda.amp.autocast(enabled=(device.type == "cuda")):
+        with torch.amp.autocast(device_type="cuda", enabled=(device.type == "cuda")):
             out = model(images)
 
             line_logits = out["line_logits"]      # [B,1,H,W]
@@ -328,7 +335,6 @@ def train_one_epoch(
 
             loss_line = line_criterion(line_logits, line_heatmap)
             loss_point = point_criterion(point_logits, point_heatmaps, point_valid_mask)
-
             loss = loss_line + point_loss_weight * loss_point
 
         scaler.scale(loss).backward()
@@ -385,9 +391,13 @@ def main() -> None:
         bce_weight=cfg["train"].get("bce_weight", 1.0),
         dice_weight=cfg["train"].get("dice_weight", 1.0),
     )
-    point_criterion = MaskedPointSlotMSELoss()
 
-    scaler = torch.cuda.amp.GradScaler(enabled=(device.type == "cuda"))
+    point_criterion = MaskedPointSlotBCEMSELoss(
+        bce_weight=cfg["train"].get("point_bce_weight", 1.0),
+        mse_weight=cfg["train"].get("point_mse_weight", 1.0),
+    )
+
+    scaler = torch.amp.GradScaler("cuda", enabled=(device.type == "cuda"))
 
     best_val = float("inf")
     global_step = 0
