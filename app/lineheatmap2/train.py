@@ -45,46 +45,41 @@ class DiceBCELoss(nn.Module):
 
 
 class MaskedPointSlotBCEMSELoss(nn.Module):
-    """
-    BCE + MSE on slot-based point heatmaps with a per-slot valid mask.
-
-    logits:     [B, K, H, W]
-    targets:    [B, K, H, W]
-    valid_mask: [B, K]
-    """
-
     def __init__(
         self,
         bce_weight: float = 1.0,
         mse_weight: float = 1.0,
+        invalid_weight: float = 0.25,
         eps: float = 1e-8,
     ):
         super().__init__()
         self.bce = nn.BCEWithLogitsLoss(reduction="none")
         self.bce_weight = float(bce_weight)
         self.mse_weight = float(mse_weight)
+        self.invalid_weight = float(invalid_weight)
         self.eps = eps
 
-    def forward(
-        self,
-        logits: torch.Tensor,
-        targets: torch.Tensor,
-        valid_mask: torch.Tensor,
-    ) -> torch.Tensor:
+    def forward(self, logits, targets, valid_mask):
         valid_mask = valid_mask.float()  # [B,K]
+        invalid_mask = 1.0 - valid_mask
 
-        # BCE per pixel -> mean over H,W => [B,K]
-        bce = self.bce(logits, targets).mean(dim=(2, 3))
-
-        # MSE on probabilities -> mean over H,W => [B,K]
+        bce = self.bce(logits, targets).mean(dim=(2, 3))  # [B,K]
         probs = torch.sigmoid(logits)
-        mse = ((probs - targets) ** 2).mean(dim=(2, 3))
+        mse = ((probs - targets) ** 2).mean(dim=(2, 3))   # [B,K]
 
-        loss = self.bce_weight * bce + self.mse_weight * mse
-        loss = loss * valid_mask
+        valid_loss = (self.bce_weight * bce + self.mse_weight * mse) * valid_mask
 
-        denom = valid_mask.sum().clamp_min(self.eps)
-        return loss.sum() / denom
+        # invalid slots should stay empty
+        invalid_target = torch.zeros_like(targets)
+        invalid_bce = self.bce(logits, invalid_target).mean(dim=(2, 3))
+        invalid_mse = ((probs - invalid_target) ** 2).mean(dim=(2, 3))
+
+        invalid_loss = (self.bce_weight * invalid_bce + self.mse_weight * invalid_mse) * invalid_mask
+
+        valid_denom = valid_mask.sum().clamp_min(self.eps)
+        invalid_denom = invalid_mask.sum().clamp_min(self.eps)
+
+        return valid_loss.sum() / valid_denom + self.invalid_weight * (invalid_loss.sum() / invalid_denom)
 
 
 def save_checkpoint(

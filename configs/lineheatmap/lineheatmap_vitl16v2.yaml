@@ -59,6 +59,7 @@ train:
 
   bce_weight: 1.0
   dice_weight: 1.0
-  point_loss_weight: 50.0
+  point_loss_weight: 20.0
   point_bce_weight: 1.0
   point_mse_weight: 1.0
+  point_invalid_weight: 0.25
