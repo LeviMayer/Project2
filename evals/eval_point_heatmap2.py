@@ -76,7 +76,40 @@ def load_line_csv(csv_path: str, line_id: Optional[int] = None) -> Tuple[np.ndar
 
 
 # --------------------------------------------------
-# Coordinate mapping (match dataset.py exactly)
+# GT loading
+# --------------------------------------------------
+
+def manifest_has_points_px(item: Dict) -> bool:
+    pts = item.get("points_px", None)
+    return isinstance(pts, list) and len(pts) > 0
+
+
+def load_gt_points_from_manifest(
+    item: Dict,
+    line_id: Optional[int] = None,
+) -> List[Tuple[float, float]]:
+    pts = item.get("points_px", [])
+    out = []
+
+    for p in pts:
+        try:
+            lid = int(p.get("line_id", 0))
+            x = float(p["x"])
+            y = float(p["y"])
+        except (KeyError, TypeError, ValueError):
+            continue
+
+        if line_id is not None and lid != int(line_id):
+            continue
+
+        out.append((x, y))
+
+    out = sorted(out, key=lambda t: t[0])
+    return out
+
+
+# --------------------------------------------------
+# Coordinate mapping fallback (older datasets)
 # --------------------------------------------------
 
 def data_to_pixel_dataset_style(
@@ -98,10 +131,41 @@ def data_to_pixel_dataset_style(
     px = plot_left + (xs - x_min) / max(x_max - x_min, 1e-8) * (plot_right - plot_left)
     py = plot_bottom + (ys - y_min) / max(y_max - y_min, 1e-8) * (plot_top - plot_bottom)
 
-    # invert y exactly like dataset.py
     py = height - py
 
     return list(zip(px.tolist(), py.tolist()))
+
+
+def load_gt_points(
+    item: Dict,
+    width: int,
+    height: int,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+    line_id: Optional[int],
+) -> List[Tuple[float, float]]:
+    """
+    Prefer exact manifest pixel GTs. Fall back to CSV->pixel mapping.
+    """
+    if manifest_has_points_px(item):
+        gt_points = load_gt_points_from_manifest(item, line_id=line_id)
+        if len(gt_points) > 0:
+            return gt_points
+
+    csv_path = item["csv"]
+    xs, ys = load_line_csv(csv_path, line_id=line_id)
+    return data_to_pixel_dataset_style(
+        xs=xs,
+        ys=ys,
+        width=width,
+        height=height,
+        x_min=x_min,
+        x_max=x_max,
+        y_min=y_min,
+        y_max=y_max,
+    )
 
 
 # --------------------------------------------------
@@ -149,7 +213,7 @@ def extract_slot_peaks(
         y, x = np.unravel_index(flat_idx, (H, W))
         peaks.append((int(x), int(y), score, slot_idx))
 
-    peaks.sort(key=lambda t: t[3])  # keep slot order
+    peaks.sort(key=lambda t: t[3])
     return peaks
 
 
@@ -233,7 +297,6 @@ def evaluate(
 
     for it in items:
         sample_id = it.get("id")
-        csv_path = it["csv"]
 
         pred_path = os.path.join(pred_dir, f"{sample_id}_point_slots.npy")
         if not os.path.exists(pred_path):
@@ -243,16 +306,15 @@ def evaluate(
         point_slots = load_point_slots(pred_path)  # [K,H,W]
         _, H, W = point_slots.shape
 
-        xs, ys = load_line_csv(csv_path, line_id=line_id)
-        gt_points = data_to_pixel_dataset_style(
-            xs=xs,
-            ys=ys,
+        gt_points = load_gt_points(
+            item=it,
             width=W,
             height=H,
             x_min=x_min,
             x_max=x_max,
             y_min=y_min,
             y_max=y_max,
+            line_id=line_id,
         )
 
         pred_peaks = extract_slot_peaks(
