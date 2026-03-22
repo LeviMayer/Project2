@@ -556,7 +556,7 @@ def generate(cfg: GenConfig):
 
 if __name__ == "__main__":
     cfg = GenConfig(
-        out_dir="out_lineex_v2",
+        out_dir="out_lineex_v3",
         n_samples=20000,
         img_size=224,
         make_masked=True,
