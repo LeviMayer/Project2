@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw
 @dataclass
 class GenConfig:
     out_dir: str = "out_lineex_v3"
-    n_samples: int = 15000
+    n_samples: int = 20000
     img_size: int = 224
     dpi: int = 100
 
@@ -51,7 +51,7 @@ class GenConfig:
     # keep text cleaner than before
     text_noise_prob: float = 0.0
     text_jitter_px: float = 0.0
-    tick_rotation_prob: float = 0.08
+    tick_rotation_prob: float = 0.0   # disabled
     legend_jitter_prob: float = 0.0
 
     # masking
@@ -120,7 +120,7 @@ def make_x_axis(n_pts: int, cfg: GenConfig) -> Tuple[np.ndarray, List[str], str]
     """
     mode = random.choices(
         ["numeric", "months", "categories"],
-        weights=[0.45, 0.35, 0.20],
+        weights=[0.45, 0.25, 0.30],
         k=1
     )[0]
 
@@ -256,14 +256,14 @@ def mask_random_rectangle(pil_img: Image.Image, area_min: float, area_max: float
 # Styling helpers
 # ----------------------------
 _BUSINESS_COLORS = [
-    "#000000", "#1f77b4", "#2ca02c", "#d62728", "#9467bd",
+    "#1f77b4", "#2ca02c", "#d62728", "#9467bd",
     "#8c564b", "#17becf", "#ff7f0e"
 ]
 
 
 def pick_line_color(n_lines: int) -> List[str]:
     if n_lines == 1:
-        if random.random() < 0.35:
+        if random.random() < 0.25:
             return ["#000000"]
         return [random.choice(_BUSINESS_COLORS)]
     colors = random.sample(_BUSINESS_COLORS, k=min(n_lines, len(_BUSINESS_COLORS)))
@@ -319,13 +319,14 @@ def choose_chart_style():
 # ----------------------------
 # Pixel metadata extraction
 # ----------------------------
-def extract_pixel_metadata(fig, ax, xs: np.ndarray, ys_lines: List[np.ndarray]):
+def extract_pixel_metadata(fig, ax, xs: np.ndarray, x_labels: List[str], ys_lines: List[np.ndarray]):
     """
     Extract exact plotted pixel coordinates from Matplotlib canvas.
 
     Returns:
         plot_bbox_px: [x0, y0, w, h] in image coordinates (origin top-left)
         points_px: list of dicts with exact plotted point positions
+        x_ticks_px: pixel x-centers for axis ticks
     """
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
@@ -349,7 +350,10 @@ def extract_pixel_metadata(fig, ax, xs: np.ndarray, ys_lines: List[np.ndarray]):
                 "y": float(canvas_h - py),
             })
 
-    return [x0, y0, w, h], points_px
+    tick_disp = ax.transData.transform(np.column_stack([xs, np.full_like(xs, ax.get_ylim()[0])]))
+    x_ticks_px = [float(px) for px, _py in tick_disp]
+
+    return [x0, y0, w, h], points_px, x_ticks_px
 
 
 # ----------------------------
@@ -367,7 +371,6 @@ def render_chart(
 ):
     fig = plt.figure(figsize=(cfg.img_size / cfg.dpi, cfg.img_size / cfg.dpi), dpi=cfg.dpi)
 
-    # more natural layout
     ax = fig.add_axes([0.14, 0.16, 0.76, 0.68])
 
     style = choose_chart_style()
@@ -375,7 +378,6 @@ def render_chart(
     if style["monochrome"]:
         colors = ["#000000" for _ in ys_lines]
 
-    # background / spines
     bg = "#ffffff" if random.random() < 0.8 else "#f8f8f8"
     fig.patch.set_facecolor(bg)
     ax.set_facecolor(bg)
@@ -395,19 +397,15 @@ def render_chart(
     ax.set_ylim(cfg.y_min, cfg.y_max)
     ax.set_xlim(xs[0], xs[-1] if len(xs) > 1 else xs[0] + 1e-3)
 
-    # ticks
     ax.set_xticks(xs)
     ax.set_xticklabels(x_labels, fontsize=random.choice([6, 7, 8]), color="#666666")
-    if random.random() < cfg.tick_rotation_prob:
-        for t in ax.get_xticklabels():
-            t.set_rotation(random.choice([10, 15, 20, -10]))
+    # no rotation anymore
 
     y_ticks = np.linspace(cfg.y_min, cfg.y_max, random.choice([5, 6, 7]))
     ax.set_yticks(y_ticks)
     ax.tick_params(axis="y", labelsize=random.choice([6, 7, 8]), colors="#666666")
     ax.tick_params(axis="x", colors="#777777")
 
-    # labels/title
     if random.random() < cfg.axis_label_prob:
         ax.set_xlabel(random_axis_label("x"), fontsize=random.choice([8, 9]), color="#666666")
     if random.random() < cfg.axis_label_prob:
@@ -425,7 +423,6 @@ def render_chart(
     if random.random() < cfg.title_prob:
         ax.set_title(random_title(), fontsize=random.choice([9, 10, 11]), pad=random.choice([6, 8, 10]), color="#555555")
 
-    # plot lines
     for i, ys in enumerate(ys_lines):
         kwargs = dict(
             linewidth=style["linewidth"],
@@ -454,23 +451,22 @@ def render_chart(
                         va=va
                     )
 
-    # legend
     if show_legend and len(ys_lines) > 1:
         labels = [f"Series {i+1}" for i in range(len(ys_lines))]
         loc = random.choice(["upper left", "upper right", "lower left", "lower right"])
         ax.legend(labels, loc=loc, fontsize=6, framealpha=0.9)
 
-    plot_bbox_px, points_px = extract_pixel_metadata(fig, ax, xs, ys_lines)
+    plot_bbox_px, points_px, x_ticks_px = extract_pixel_metadata(fig, ax, xs, x_labels, ys_lines)
 
     fig.savefig(out_png, dpi=cfg.dpi, bbox_inches=None)
     plt.close(fig)
 
-    # Keep exact geometry; no extra resizing
     Image.open(out_png).convert("RGB").save(out_png)
 
     return {
         "plot_bbox_px": plot_bbox_px,
         "points_px": points_px,
+        "x_ticks_px": x_ticks_px,
     }
 
 
@@ -513,13 +509,11 @@ def generate(cfg: GenConfig):
                 show_legend=(random.random() < cfg.legend_prob),
             )
 
-            # optional mild pixel noise
             if random.random() < cfg.noise_prob:
                 img = Image.open(full).convert("RGB")
                 img = add_pixel_noise(img, strength=random.uniform(1.0, 5.0))
                 img.save(full)
 
-            # masked version
             if cfg.make_masked and random.random() < cfg.mask_rect_prob:
                 img = Image.open(full).convert("RGB")
                 img = mask_random_rectangle(img, cfg.mask_rect_min_area, cfg.mask_rect_max_area)
@@ -527,7 +521,6 @@ def generate(cfg: GenConfig):
             else:
                 masked = None
 
-            # write CSV labels
             with open(csv_p, "w", newline="") as f:
                 w = csv.writer(f)
                 w.writerow(["x", "y", "line_id"])
@@ -543,8 +536,11 @@ def generate(cfg: GenConfig):
                 "n_lines": n_lines,
                 "n_points": n_pts,
                 "x_mode": x_mode,
+                "x_values": [float(v) for v in xs.tolist()],
+                "x_labels": x_labels,
                 "plot_bbox_px": render_meta["plot_bbox_px"],
                 "points_px": render_meta["points_px"],
+                "x_ticks_px": render_meta["x_ticks_px"],
             }) + "\n")
 
             if (idx + 1) % 500 == 0:

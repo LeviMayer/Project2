@@ -148,6 +148,22 @@ def pixel_to_data_fallback(
     )
 
 
+def snap_x_to_ticks(
+    x_px: float,
+    x_ticks_px: List[float],
+    x_values: List[float],
+) -> float:
+    """
+    Snap x to nearest categorical/month tick center.
+    """
+    if len(x_ticks_px) == 0 or len(x_values) == 0 or len(x_ticks_px) != len(x_values):
+        raise ValueError("x_ticks_px and x_values must be non-empty and same length")
+
+    dists = [abs(x_px - tx) for tx in x_ticks_px]
+    idx = int(np.argmin(dists))
+    return float(x_values[idx])
+
+
 # --------------------------------------------------
 # Reconstruction
 # --------------------------------------------------
@@ -187,10 +203,54 @@ def reconstruct_sample(
         and all(isinstance(v, (int, float)) for v in plot_bbox_px)
     )
 
+    x_mode = item.get("x_mode", "numeric")
+    x_values = item.get("x_values", None)
+    x_ticks_px = item.get("x_ticks_px", None)
+    x_labels = item.get("x_labels", None)
+
+    use_tick_snap = (
+        x_mode in {"months", "categories"}
+        and isinstance(x_values, list)
+        and isinstance(x_ticks_px, list)
+        and len(x_values) > 0
+        and len(x_values) == len(x_ticks_px)
+    )
+
     reconstructed = []
     for x_px, y_px, score, slot_idx in pred_peaks:
+        # X reconstruction
+        if use_tick_snap:
+            x_data = snap_x_to_ticks(
+                x_px=float(x_px),
+                x_ticks_px=[float(v) for v in x_ticks_px],
+                x_values=[float(v) for v in x_values],
+            )
+        else:
+            if use_exact_bbox:
+                x_data, _ = pixel_to_data_with_bbox(
+                    px=x_px,
+                    py=y_px,
+                    plot_bbox_px=plot_bbox_px,
+                    x_min=x_min,
+                    x_max=x_max,
+                    y_min=y_min,
+                    y_max=y_max,
+                )
+            else:
+                x_data, _ = pixel_to_data_fallback(
+                    px=x_px,
+                    py=y_px,
+                    width=W,
+                    height=H,
+                    x_min=x_min,
+                    x_max=x_max,
+                    y_min=y_min,
+                    y_max=y_max,
+                )
+
+        # Y reconstruction stays continuous
         if use_exact_bbox:
-            x_data, y_data = pixel_to_data_with_bbox(
+            _, y_data = pixel_to_data_with_bbox(
                 px=x_px,
                 py=y_px,
                 plot_bbox_px=plot_bbox_px,
@@ -200,7 +260,7 @@ def reconstruct_sample(
                 y_max=y_max,
             )
         else:
-            x_data, y_data = pixel_to_data_fallback(
+            _, y_data = pixel_to_data_fallback(
                 px=x_px,
                 py=y_px,
                 width=W,
@@ -225,6 +285,11 @@ def reconstruct_sample(
         "id": sample_id,
         "pred_path": pred_path,
         "plot_bbox_px": plot_bbox_px if use_exact_bbox else None,
+        "x_mode": x_mode,
+        "x_values": x_values,
+        "x_labels": x_labels,
+        "x_ticks_px": x_ticks_px,
+        "used_tick_snap": use_tick_snap,
         "num_points": len(reconstructed),
         "points": reconstructed,
     }
