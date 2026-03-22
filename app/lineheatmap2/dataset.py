@@ -1,7 +1,7 @@
 import csv
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 import torch
@@ -15,13 +15,20 @@ class LineHeatmapDataset(Dataset):
     """
     Dataset for line-chart supervision with slot-based point targets.
 
+    Preferred supervision path (for synthetic v3):
+        - use exact pixel points from manifest["points_px"]
+
+    Fallback path (older datasets / real data):
+        - read CSV and map data coords -> pixel coords via _to_pixel(...)
+
     Returns:
         image:            [3, H, W]
-        line_heatmap:     [1, H, W]   -> full curve heatmap
-        point_heatmaps:   [K, H, W]   -> one channel per sorted point slot
-        point_valid_mask: [K]         -> 1 if slot is used, else 0
-        num_points:       scalar       -> number of valid points used
+        line_heatmap:     [1, H, W]
+        point_heatmaps:   [K, H, W]
+        point_valid_mask: [K]
+        num_points:       scalar
         id:               sample id
+        plot_bbox_px:     [4] optional metadata tensor
     """
 
     def __init__(
@@ -47,6 +54,7 @@ class LineHeatmapDataset(Dataset):
         self.records = self._load_manifest(self.manifest_path)
         self.records = self._filter_valid_records(self.records)
         print(f"[INFO] valid samples: {len(self.records)}")
+
         self.image_key = image_key
         self.image_size = int(image_size)
         self.heatmap_size = int(heatmap_size)
@@ -75,34 +83,36 @@ class LineHeatmapDataset(Dataset):
             raise ValueError(f"Record {rec.get('id', idx)} has no image key '{self.image_key}'")
         img_path = self.root_dir / img_rel
 
-        csv_rel = rec["csv"]
-        csv_path = self.root_dir / csv_rel
-
         image = Image.open(img_path).convert("RGB")
         image = self.image_tf(image)  # [3,H,W], range [0,1]
 
-        line_points = self._read_points(csv_path)
-        if not line_points or sum(len(v) for v in line_points.values()) == 0:
-            raise ValueError(f"No valid numeric points found in {csv_path}")
+        point_records = self._get_point_records(rec)
+        if len(point_records) == 0:
+            raise ValueError(f"No valid points found for sample {rec.get('id', idx)}")
 
-        line_heatmap = self._build_line_heatmap(
-            line_points=line_points,
+        line_heatmap = self._build_line_heatmap_from_records(
+            point_records=point_records,
             height=self.heatmap_size,
             width=self.heatmap_size,
         )
 
-        point_heatmaps, point_valid_mask, num_points = self._build_point_slot_heatmaps(
-            line_points=line_points,
+        point_heatmaps, point_valid_mask, num_points = self._build_point_slot_heatmaps_from_records(
+            point_records=point_records,
             height=self.heatmap_size,
             width=self.heatmap_size,
         )
+
+        plot_bbox_px = rec.get("plot_bbox_px", None)
+        if plot_bbox_px is None:
+            plot_bbox_px = [-1.0, -1.0, -1.0, -1.0]
 
         return {
             "image": image,
-            "line_heatmap": torch.from_numpy(line_heatmap).unsqueeze(0),          # [1,H,W]
-            "point_heatmaps": torch.from_numpy(point_heatmaps),                   # [K,H,W]
-            "point_valid_mask": torch.from_numpy(point_valid_mask),               # [K]
+            "line_heatmap": torch.from_numpy(line_heatmap).unsqueeze(0),   # [1,H,W]
+            "point_heatmaps": torch.from_numpy(point_heatmaps),            # [K,H,W]
+            "point_valid_mask": torch.from_numpy(point_valid_mask),        # [K]
             "num_points": torch.tensor(num_points, dtype=torch.long),
+            "plot_bbox_px": torch.tensor(plot_bbox_px, dtype=torch.float32),
             "id": rec.get("id", f"sample_{idx:06d}"),
         }
 
@@ -145,26 +155,9 @@ class LineHeatmapDataset(Dataset):
 
         return by_line
 
-    def _flatten_and_sort_points(
-        self,
-        line_points: Dict[int, List[Tuple[float, float]]],
-    ) -> List[Tuple[float, float]]:
-        """
-        Flatten all lines into a single list of points and sort globally by x.
-        For now this is fine for single-line charts and a pragmatic start for Phase 2.
-        """
-        all_points: List[Tuple[float, float]] = []
-        for _line_id, pts in line_points.items():
-            all_points.extend(pts)
-
-        all_points = sorted(all_points, key=lambda p: p[0])
-        return all_points
-
     def _to_pixel(self, x: float, y: float, width: int, height: int) -> Tuple[int, int]:
         """
-        Maps chart coordinates into heatmap pixel coordinates.
-        x grows left->right, y grows bottom->top in chart coordinates.
-        image coordinates use top->bottom, so y is inverted.
+        Fallback mapping for datasets without exact pixel metadata.
         """
         plot_left = int(0.12 * width)
         plot_right = int((0.12 + 0.82) * width)
@@ -175,13 +168,110 @@ class LineHeatmapDataset(Dataset):
         px = plot_left + (x - self.x_min) / max(self.x_max - self.x_min, 1e-8) * (plot_right - plot_left)
         py = plot_bottom + (y - self.y_min) / max(self.y_max - self.y_min, 1e-8) * (plot_top - plot_bottom)
 
-        # invert y for image coordinates
         py = height - py
 
         px = int(np.clip(round(px), 0, width - 1))
         py = int(np.clip(round(py), 0, height - 1))
 
         return px, py
+
+    def _manifest_has_points_px(self, rec: dict) -> bool:
+        pts = rec.get("points_px", None)
+        return isinstance(pts, list) and len(pts) > 0
+
+    def _get_point_records_from_manifest(
+        self,
+        rec: dict,
+        width: int,
+        height: int,
+    ) -> List[Dict[str, int]]:
+        """
+        Use exact plotted pixel points stored in manifest.
+        Each item returned:
+            {"line_id": int, "px": int, "py": int}
+        """
+        pts = rec.get("points_px", [])
+        out: List[Dict[str, int]] = []
+
+        for p in pts:
+            try:
+                line_id = int(p.get("line_id", 0))
+                px = int(np.clip(round(float(p["x"])), 0, width - 1))
+                py = int(np.clip(round(float(p["y"])), 0, height - 1))
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            out.append({
+                "line_id": line_id,
+                "px": px,
+                "py": py,
+            })
+
+        # sort globally by x, then by line_id for deterministic ordering
+        out = sorted(out, key=lambda d: (d["px"], d["line_id"], d["py"]))
+        return out
+
+    def _get_point_records_from_csv(
+        self,
+        rec: dict,
+        width: int,
+        height: int,
+    ) -> List[Dict[str, int]]:
+        """
+        Fallback for older datasets:
+            CSV -> numeric points -> approximate pixel projection
+        """
+        csv_rel = rec["csv"]
+        csv_path = self.root_dir / csv_rel
+
+        line_points = self._read_points(csv_path)
+        if not line_points or sum(len(v) for v in line_points.values()) == 0:
+            return []
+
+        out: List[Dict[str, int]] = []
+        for line_id, pts in line_points.items():
+            for x, y in pts:
+                px, py = self._to_pixel(x, y, width, height)
+                out.append({
+                    "line_id": int(line_id),
+                    "px": int(px),
+                    "py": int(py),
+                })
+
+        out = sorted(out, key=lambda d: (d["px"], d["line_id"], d["py"]))
+        return out
+
+    def _get_point_records(
+        self,
+        rec: dict,
+    ) -> List[Dict[str, int]]:
+        """
+        Main entry:
+        Prefer exact manifest pixel points, fallback to CSV mapping.
+        """
+        width = self.heatmap_size
+        height = self.heatmap_size
+
+        if self._manifest_has_points_px(rec):
+            pts = self._get_point_records_from_manifest(rec, width=width, height=height)
+            if len(pts) > 0:
+                return pts
+
+        return self._get_point_records_from_csv(rec, width=width, height=height)
+
+    def _group_point_records_by_line(
+        self,
+        point_records: List[Dict[str, int]],
+    ) -> Dict[int, List[Tuple[int, int]]]:
+        by_line: Dict[int, List[Tuple[int, int]]] = {}
+        for p in point_records:
+            line_id = int(p["line_id"])
+            by_line.setdefault(line_id, []).append((int(p["px"]), int(p["py"])))
+
+        for line_id in by_line:
+            by_line[line_id] = sorted(by_line[line_id], key=lambda t: t[0])
+
+        return by_line
 
     def _draw_line_segments(
         self,
@@ -206,7 +296,16 @@ class LineHeatmapDataset(Dataset):
             ys = np.clip(np.round(ys).astype(np.int32), 0, canvas.shape[0] - 1)
             canvas[ys, xs] = 1.0
 
-    def _has_valid_points(self, csv_path: Path) -> bool:
+    def _has_valid_points(self, rec: dict) -> bool:
+        if self._manifest_has_points_px(rec):
+            pts = rec.get("points_px", [])
+            return len(pts) > 0
+
+        csv_rel = rec.get("csv")
+        if csv_rel is None:
+            return False
+
+        csv_path = self.root_dir / csv_rel
         try:
             by_line = self._read_points(csv_path)
             total_points = sum(len(v) for v in by_line.values())
@@ -214,19 +313,12 @@ class LineHeatmapDataset(Dataset):
         except Exception:
             return False
 
-
     def _filter_valid_records(self, records: List[dict]) -> List[dict]:
         valid_records = []
         dropped = 0
 
         for rec in records:
-            csv_rel = rec.get("csv")
-            if csv_rel is None:
-                dropped += 1
-                continue
-
-            csv_path = self.root_dir / csv_rel
-            if self._has_valid_points(csv_path):
+            if self._has_valid_points(rec):
                 valid_records.append(rec)
             else:
                 dropped += 1
@@ -242,19 +334,19 @@ class LineHeatmapDataset(Dataset):
         out = out / max(out.max(), 1e-8)
         return out.astype(np.float32)
 
-    def _build_line_heatmap(
+    def _build_line_heatmap_from_records(
         self,
-        line_points: Dict[int, List[Tuple[float, float]]],
+        point_records: List[Dict[str, int]],
         height: int,
         width: int,
     ) -> np.ndarray:
         """
-        Heatmap for the whole line / curve.
+        Build line heatmap from exact pixel points or fallback-projected points.
         """
         canvas = np.zeros((height, width), dtype=np.float32)
 
-        for _line_id, pts in line_points.items():
-            pix = [self._to_pixel(x, y, width, height) for x, y in pts]
+        by_line = self._group_point_records_by_line(point_records)
+        for _line_id, pix in by_line.items():
             self._draw_line_segments(canvas, pix)
 
         heatmap = self._gaussian_blur(canvas, self.sigma)
@@ -267,42 +359,40 @@ class LineHeatmapDataset(Dataset):
         height: int,
         width: int,
     ) -> np.ndarray:
-        """
-        Build one heatmap channel for exactly one support point.
-        """
         canvas = np.zeros((height, width), dtype=np.float32)
         canvas[py, px] = 1.0
         heatmap = self._gaussian_blur(canvas, self.point_sigma)
         return heatmap.astype(np.float32)
 
-    def _build_point_slot_heatmaps(
+    def _build_point_slot_heatmaps_from_records(
         self,
-        line_points: Dict[int, List[Tuple[float, float]]],
+        point_records: List[Dict[str, int]],
         height: int,
         width: int,
     ) -> Tuple[np.ndarray, np.ndarray, int]:
         """
-        Build slot-based point heatmaps.
+        Build slot-based point heatmaps from pixel records.
 
         Returns:
             point_heatmaps: [K,H,W]
             point_valid_mask: [K]
             num_points: int
         """
-        all_points = self._flatten_and_sort_points(line_points)
-        if len(all_points) == 0:
+        if len(point_records) == 0:
             point_heatmaps = np.zeros((self.max_points, height, width), dtype=np.float32)
             point_valid_mask = np.zeros((self.max_points,), dtype=np.float32)
             return point_heatmaps, point_valid_mask, 0
 
-        all_points = all_points[:self.max_points]
-        num_points = len(all_points)
+        point_records = sorted(point_records, key=lambda d: (d["px"], d["line_id"], d["py"]))
+        point_records = point_records[:self.max_points]
+        num_points = len(point_records)
 
         point_heatmaps = np.zeros((self.max_points, height, width), dtype=np.float32)
         point_valid_mask = np.zeros((self.max_points,), dtype=np.float32)
 
-        for slot_idx, (x, y) in enumerate(all_points):
-            px, py = self._to_pixel(x, y, width, height)
+        for slot_idx, p in enumerate(point_records):
+            px = int(p["px"])
+            py = int(p["py"])
             point_heatmaps[slot_idx] = self._build_single_point_heatmap(
                 px=px,
                 py=py,
