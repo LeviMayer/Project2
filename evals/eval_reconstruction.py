@@ -6,6 +6,7 @@ import argparse
 from typing import Dict, List, Tuple, Optional
 
 import numpy as np
+from PIL import Image, ImageDraw
 
 
 # --------------------------------------------------
@@ -79,6 +80,36 @@ def load_reconstructed_csv(csv_path: str) -> List[Tuple[float, float]]:
 
 
 # --------------------------------------------------
+# Pixel GT loading from manifest
+# --------------------------------------------------
+
+def manifest_has_points_px(item: Dict) -> bool:
+    pts = item.get("points_px", None)
+    return isinstance(pts, list) and len(pts) > 0
+
+
+def load_gt_points_px_from_manifest(item: Dict, line_id: Optional[int] = 0) -> List[Tuple[float, float]]:
+    pts = item.get("points_px", [])
+    out = []
+
+    for p in pts:
+        try:
+            x = float(p["x"])
+            y = float(p["y"])
+            lid = int(p.get("line_id", 0))
+        except (KeyError, TypeError, ValueError):
+            continue
+
+        if line_id is not None and lid != int(line_id):
+            continue
+
+        out.append((x, y))
+
+    out = sorted(out, key=lambda t: t[0])
+    return out
+
+
+# --------------------------------------------------
 # Matching
 # --------------------------------------------------
 
@@ -146,6 +177,159 @@ def greedy_match_data(
 
 
 # --------------------------------------------------
+# Visualization helpers
+# --------------------------------------------------
+
+def draw_cross(draw: ImageDraw.ImageDraw, x: float, y: float, color: Tuple[int, int, int], r: int = 4):
+    x = int(round(x))
+    y = int(round(y))
+    draw.line((x - r, y, x + r, y), fill=color, width=2)
+    draw.line((x, y - r, x, y + r), fill=color, width=2)
+
+
+def draw_circle(draw: ImageDraw.ImageDraw, x: float, y: float, color: Tuple[int, int, int], r: int = 4):
+    x = int(round(x))
+    y = int(round(y))
+    draw.ellipse((x - r, y - r, x + r, y + r), outline=color, width=2)
+
+
+def render_overlay_image(
+    image_path: str,
+    gt_points_px: List[Tuple[float, float]],
+    pred_points_px: List[Tuple[float, float]],
+    out_path: str,
+    connect_lines: bool = True,
+):
+    img = Image.open(image_path).convert("RGB")
+    draw = ImageDraw.Draw(img)
+
+    # GT in green
+    if connect_lines and len(gt_points_px) >= 2:
+        draw.line([(float(x), float(y)) for x, y in gt_points_px], fill=(0, 255, 0), width=2)
+    for x, y in gt_points_px:
+        draw_cross(draw, x, y, color=(0, 255, 0), r=4)
+
+    # Prediction in red
+    if connect_lines and len(pred_points_px) >= 2:
+        draw.line([(float(x), float(y)) for x, y in pred_points_px], fill=(255, 0, 0), width=2)
+    for x, y in pred_points_px:
+        draw_circle(draw, x, y, color=(255, 0, 0), r=4)
+
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    img.save(out_path)
+
+
+def save_example_visualizations(
+    per_sample: List[Dict],
+    examples_dir: str,
+    num_best: int = 3,
+    num_worst: int = 3,
+    num_regular: int = 3,
+):
+    if len(per_sample) == 0:
+        return
+
+    os.makedirs(examples_dir, exist_ok=True)
+
+    valid = [s for s in per_sample if s.get("image_path") is not None]
+
+    if len(valid) == 0:
+        return
+
+    # Best: high f1, then low euclidean error
+    best_sorted = sorted(
+        valid,
+        key=lambda s: (
+            -(s.get("f1", 0.0)),
+            s.get("mean_euclidean_error") if s.get("mean_euclidean_error") is not None else 1e9,
+        ),
+    )[:num_best]
+
+    # Worst: low f1, then high fn/fp
+    worst_sorted = sorted(
+        valid,
+        key=lambda s: (
+            s.get("f1", 0.0),
+            -(s.get("fn", 0)),
+            -(s.get("fp", 0)),
+        ),
+    )[:num_worst]
+
+    # Regular evenly spaced examples
+    step = max(1, len(valid) // max(1, num_regular))
+    regular = [valid[i] for i in range(0, len(valid), step)[:num_regular]]
+
+    groups = [
+        ("best", best_sorted),
+        ("worst", worst_sorted),
+        ("examples", regular),
+    ]
+
+    for group_name, samples in groups:
+        group_dir = os.path.join(examples_dir, group_name)
+        os.makedirs(group_dir, exist_ok=True)
+
+        for rank, sample in enumerate(samples, start=1):
+            sample_id = sample["id"]
+            out_path = os.path.join(
+                group_dir,
+                f"{rank:02d}_{sample_id}_f1_{sample['f1']:.3f}.png"
+            )
+            render_overlay_image(
+                image_path=sample["image_path"],
+                gt_points_px=sample["gt_points_px"],
+                pred_points_px=sample["pred_points_px"],
+                out_path=out_path,
+                connect_lines=True,
+            )
+
+
+# --------------------------------------------------
+# Data reconstruction -> pixel conversion
+# --------------------------------------------------
+
+def pixel_to_data_with_bbox(
+    px: float,
+    py: float,
+    plot_bbox_px: List[float],
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> Tuple[float, float]:
+    x0, y0, w, h = plot_bbox_px
+
+    x_norm = (px - x0) / max(w, 1e-8)
+    y_norm = (py - y0) / max(h, 1e-8)
+
+    x_norm = float(np.clip(x_norm, 0.0, 1.0))
+    y_norm = float(np.clip(y_norm, 0.0, 1.0))
+
+    data_x = x_min + x_norm * (x_max - x_min)
+    data_y = y_max - y_norm * (y_max - y_min)
+    return float(data_x), float(data_y)
+
+
+def data_to_pixel_with_bbox(
+    x: float,
+    y: float,
+    plot_bbox_px: List[float],
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> Tuple[float, float]:
+    x0, y0, w, h = plot_bbox_px
+
+    x_norm = (x - x_min) / max(x_max - x_min, 1e-8)
+    y_norm = (y_max - y) / max(y_max - y_min, 1e-8)
+
+    x_px = x0 + x_norm * w
+    y_px = y0 + y_norm * h
+    return float(x_px), float(y_px)
+
+
+# --------------------------------------------------
 # Evaluation
 # --------------------------------------------------
 
@@ -155,6 +339,10 @@ def evaluate(
     line_id: Optional[int],
     x_thresh: float,
     y_thresh: float,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
 ):
     items = read_manifest(manifest_path)
 
@@ -198,8 +386,32 @@ def evaluate(
         if metrics["mean_euclidean_error"] is not None:
             all_euc_err.extend([m[2] for m in metrics["matches"]])
 
+        # Optional visualization payload
+        image_path = item.get("full", None)
+        plot_bbox_px = item.get("plot_bbox_px", None)
+
+        gt_points_px = []
+        pred_points_px = []
+
+        if isinstance(plot_bbox_px, list) and len(plot_bbox_px) == 4:
+            gt_points_px = [
+                data_to_pixel_with_bbox(x, y, plot_bbox_px, x_min, x_max, y_min, y_max)
+                for x, y in gt_points
+            ]
+            pred_points_px = [
+                data_to_pixel_with_bbox(x, y, plot_bbox_px, x_min, x_max, y_min, y_max)
+                for x, y in pred_points
+            ]
+        elif manifest_has_points_px(item):
+            gt_points_px = load_gt_points_px_from_manifest(item, line_id=line_id)
+            pred_points_px = []
+
         per_sample.append({
             "id": sample_id,
+            "image_path": image_path,
+            "plot_bbox_px": plot_bbox_px,
+            "gt_points_px": gt_points_px,
+            "pred_points_px": pred_points_px,
             "num_gt": len(gt_points),
             "num_pred": len(pred_points),
             "tp": metrics["tp"],
@@ -248,6 +460,16 @@ def main():
     ap.add_argument("--x_thresh", type=float, default=0.5)
     ap.add_argument("--y_thresh", type=float, default=10.0)
 
+    ap.add_argument("--x_min", type=float, default=0.0)
+    ap.add_argument("--x_max", type=float, default=10.0)
+    ap.add_argument("--y_min", type=float, default=0.0)
+    ap.add_argument("--y_max", type=float, default=100.0)
+
+    ap.add_argument("--examples_dir", type=str, default="")
+    ap.add_argument("--num_best", type=int, default=3)
+    ap.add_argument("--num_worst", type=int, default=3)
+    ap.add_argument("--num_examples", type=int, default=3)
+
     ap.add_argument("--save_json", type=str, default="")
     args = ap.parse_args()
 
@@ -257,11 +479,25 @@ def main():
         line_id=args.line_id,
         x_thresh=args.x_thresh,
         y_thresh=args.y_thresh,
+        x_min=args.x_min,
+        x_max=args.x_max,
+        y_min=args.y_min,
+        y_max=args.y_max,
     )
 
     print("\n=== SUMMARY ===")
     for k, v in summary.items():
         print(f"{k}: {v}")
+
+    if args.examples_dir:
+        save_example_visualizations(
+            per_sample=per_sample,
+            examples_dir=args.examples_dir,
+            num_best=args.num_best,
+            num_worst=args.num_worst,
+            num_regular=args.num_examples,
+        )
+        print(f"\nSaved example visualizations to: {args.examples_dir}")
 
     if args.save_json:
         out = {
