@@ -27,7 +27,7 @@ data:
   y_max: 100.0
 
   sigma: 1.0
-  point_sigma: 0.6
+  point_sigma: 1.0
   max_points: 16
 
 model:
@@ -59,7 +59,7 @@ train:
 
   bce_weight: 1.0
   dice_weight: 1.0
-  point_loss_weight: 20.0
+  point_loss_weight: 50.0
   point_bce_weight: 1.0
   point_mse_weight: 1.0
   point_invalid_weight: 0.25
