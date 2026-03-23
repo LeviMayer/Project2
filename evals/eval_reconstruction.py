@@ -79,6 +79,41 @@ def load_reconstructed_csv(csv_path: str) -> List[Tuple[float, float]]:
     return points
 
 
+def load_reconstructed_csv_with_pixels(csv_path: str) -> Tuple[List[Tuple[float, float]], List[Tuple[float, float]]]:
+    """
+    Returns:
+        data_points: [(x, y), ...]
+        pixel_points: [(x_px, y_px), ...] if available, else []
+    """
+    data_points = []
+    pixel_points = []
+    has_pixel_cols = True
+
+    with open(csv_path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                x = float(row["x"])
+                y = float(row["y"])
+                data_points.append((x, y))
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            try:
+                x_px = float(row["x_px"])
+                y_px = float(row["y_px"])
+                pixel_points.append((x_px, y_px))
+            except (KeyError, TypeError, ValueError):
+                has_pixel_cols = False
+
+    data_points = sorted(data_points, key=lambda t: t[0])
+
+    if not has_pixel_cols or len(pixel_points) != len(data_points):
+        pixel_points = []
+
+    return data_points, pixel_points
+
+
 # --------------------------------------------------
 # Pixel GT loading from manifest
 # --------------------------------------------------
@@ -123,10 +158,6 @@ def greedy_match_data(
     x_thresh: float,
     y_thresh: float,
 ):
-    """
-    Match points in data space with thresholds on x and y.
-    Among allowed matches, use smallest Euclidean distance.
-    """
     candidates = []
     for pi, pp in enumerate(pred_points):
         for gi, gp in enumerate(gt_points):
@@ -236,7 +267,6 @@ def save_example_visualizations(
     if len(valid) == 0:
         return
 
-    # Best: high f1, then low euclidean error
     best_sorted = sorted(
         valid,
         key=lambda s: (
@@ -245,7 +275,6 @@ def save_example_visualizations(
         ),
     )[:num_best]
 
-    # Worst: low f1, then high fn/fp
     worst_sorted = sorted(
         valid,
         key=lambda s: (
@@ -255,7 +284,6 @@ def save_example_visualizations(
         ),
     )[:num_worst]
 
-    # Regular evenly spaced examples
     step = max(1, len(valid) // max(1, num_regular))
     regular = [valid[i] for i in range(0, len(valid), step)[:num_regular]]
 
@@ -310,7 +338,18 @@ def pixel_to_data_with_bbox(
     return float(data_x), float(data_y)
 
 
-def data_to_pixel_with_bbox(
+def data_y_to_pixel_with_bbox(
+    y: float,
+    plot_bbox_px: List[float],
+    y_min: float,
+    y_max: float,
+) -> float:
+    _, y0, _, h = plot_bbox_px
+    y_norm = (y_max - y) / max(y_max - y_min, 1e-8)
+    return float(y0 + y_norm * h)
+
+
+def data_to_pixel_numeric_with_bbox(
     x: float,
     y: float,
     plot_bbox_px: List[float],
@@ -319,14 +358,59 @@ def data_to_pixel_with_bbox(
     y_min: float,
     y_max: float,
 ) -> Tuple[float, float]:
-    x0, y0, w, h = plot_bbox_px
-
+    x0, _, w, _ = plot_bbox_px
     x_norm = (x - x_min) / max(x_max - x_min, 1e-8)
-    y_norm = (y_max - y) / max(y_max - y_min, 1e-8)
-
     x_px = x0 + x_norm * w
-    y_px = y0 + y_norm * h
+    y_px = data_y_to_pixel_with_bbox(y, plot_bbox_px, y_min, y_max)
     return float(x_px), float(y_px)
+
+
+def data_to_pixel_sample_aware(
+    x: float,
+    y: float,
+    item: Dict,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> Tuple[float, float]:
+    """
+    Sample-aware visualization mapping:
+      - numeric: use linear bbox mapping
+      - months/categories: snap x via x_values -> x_ticks_px
+    """
+    plot_bbox_px = item.get("plot_bbox_px", None)
+    if not (isinstance(plot_bbox_px, list) and len(plot_bbox_px) == 4):
+        raise ValueError("Missing valid plot_bbox_px")
+
+    x_mode = item.get("x_mode", "numeric")
+    x_values = item.get("x_values", None)
+    x_ticks_px = item.get("x_ticks_px", None)
+
+    if (
+        x_mode in {"months", "categories"}
+        and isinstance(x_values, list)
+        and isinstance(x_ticks_px, list)
+        and len(x_values) > 0
+        and len(x_values) == len(x_ticks_px)
+    ):
+        # map x by nearest allowed x_value, then take corresponding tick pixel
+        dists = [abs(float(x) - float(v)) for v in x_values]
+        idx = int(np.argmin(dists))
+        x_px = float(x_ticks_px[idx])
+        y_px = data_y_to_pixel_with_bbox(y, plot_bbox_px, y_min, y_max)
+        return x_px, y_px
+
+    # numeric fallback
+    return data_to_pixel_numeric_with_bbox(
+        x=x,
+        y=y,
+        plot_bbox_px=plot_bbox_px,
+        x_min=x_min,
+        x_max=x_max,
+        y_min=y_min,
+        y_max=y_max,
+    )
 
 
 # --------------------------------------------------
@@ -366,7 +450,7 @@ def evaluate(
             continue
 
         gt_points = load_gt_csv(gt_csv, line_id=line_id)
-        pred_points = load_reconstructed_csv(pred_csv)
+        pred_points, pred_points_px_from_csv = load_reconstructed_csv_with_pixels(pred_csv)
 
         metrics = greedy_match_data(
             pred_points=pred_points,
@@ -386,30 +470,31 @@ def evaluate(
         if metrics["mean_euclidean_error"] is not None:
             all_euc_err.extend([m[2] for m in metrics["matches"]])
 
-        # Optional visualization payload
         image_path = item.get("full", None)
-        plot_bbox_px = item.get("plot_bbox_px", None)
 
-        gt_points_px = []
-        pred_points_px = []
-
-        if isinstance(plot_bbox_px, list) and len(plot_bbox_px) == 4:
+        # GT overlay pixels: use exact GT points if available, else sample-aware projection
+        if manifest_has_points_px(item):
+            gt_points_px = load_gt_points_px_from_manifest(item, line_id=line_id)
+        else:
             gt_points_px = [
-                data_to_pixel_with_bbox(x, y, plot_bbox_px, x_min, x_max, y_min, y_max)
+                data_to_pixel_sample_aware(x, y, item, x_min, x_max, y_min, y_max)
                 for x, y in gt_points
             ]
+
+        # Prediction overlay pixels:
+        # Prefer direct predicted pixels from reconstructed CSV to avoid pixel->data->pixel drift
+        if len(pred_points_px_from_csv) == len(pred_points) and len(pred_points_px_from_csv) > 0:
+            pred_points_px = pred_points_px_from_csv
+        else:
             pred_points_px = [
-                data_to_pixel_with_bbox(x, y, plot_bbox_px, x_min, x_max, y_min, y_max)
+                data_to_pixel_sample_aware(x, y, item, x_min, x_max, y_min, y_max)
                 for x, y in pred_points
             ]
-        elif manifest_has_points_px(item):
-            gt_points_px = load_gt_points_px_from_manifest(item, line_id=line_id)
-            pred_points_px = []
 
         per_sample.append({
             "id": sample_id,
             "image_path": image_path,
-            "plot_bbox_px": plot_bbox_px,
+            "plot_bbox_px": item.get("plot_bbox_px", None),
             "gt_points_px": gt_points_px,
             "pred_points_px": pred_points_px,
             "num_gt": len(gt_points),
