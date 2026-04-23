@@ -1,10 +1,10 @@
-# 📊 Project2 — Line Chart Data Extraction with JEPA
+# Project2 — Line Chart Data Extraction with JEPA
 
 Recovering underlying data points from line chart images using Deep Learning and frozen Vision Transformers.
 
 ---
 
-## 🎯 Core Idea
+## Core Idea
 
 **Goal:** Extract data points from line chart images  
 **Method:** Frozen JEPA/ViT encoder + slot-based point decoder  
@@ -26,7 +26,7 @@ Chart Image
 
 ---
 
-## 🔬 Why Slot-Based Point Heatmaps?
+## Why Slot-Based Point Heatmaps?
 
 ### The Problem
 Single point heatmaps fail because:
@@ -45,16 +45,16 @@ Single point heatmaps fail because:
 | ... | ... |
 | Slot K-1 | Last point slot |
 
-### Benefits ✓
+### Benefits
 - Clear separation of concerns  
 - Each slot individually supervised
 - Empty slots can be masked
 - Much higher precision + easier extraction
-- **Result:** 📈 Significantly better than earlier single-heatmap approach
+- **Result:** Significantly better than earlier single-heatmap approach
 
 ---
 
-## 📂 Architecture
+## Architecture
 
 ### Synthetic Dataset (v3)
 
@@ -87,7 +87,7 @@ out_lineex_v3/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Step 1: Generate Synthetic Charts
 
@@ -201,7 +201,7 @@ python evals/eval_point_slots.py ... --slot_threshold 0.05 --dist_thresh 12.0 --
 
 ---
 
-## 🔍 Optional: Debug & Inspection
+## Optional: Debug & Inspection
 
 ### Visualize Ground Truth Projections
 
@@ -226,7 +226,7 @@ Useful for detecting:
 
 ---
 
-## 💻 Cluster Execution (Slurm)
+## Cluster Execution (Slurm)
 
 ### Train via Slurm
 
@@ -242,7 +242,7 @@ sbatch slurm_predict_lineheatmap_slots.slurm
 
 ---
 
-## 🔄 Typical Development Cycle
+## Typical Development Cycle
 
 ```
 1. Adjust config
@@ -282,7 +282,7 @@ python evals/eval_point_slots.py \
 ```
 ---
 
-## 📋 File Reference
+## File Reference
 
 **Generation & Data**
 - `gen_linecharts3.py` — Synthetic chart generator
